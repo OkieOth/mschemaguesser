@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var database string
+
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Discovery the database you are connected to",
@@ -24,14 +26,9 @@ var databasesCmd = &cobra.Command{
 	Long:  "Prints a list of available databases i the connected server",
 	Run: func(cmd *cobra.Command, args1 []string) {
 
-		conStr, err := cmd.Flags().GetString("con_str")
+		dbs, err := mongoHelper.ListDatabases(mongoHelper.ConStr)
 		if err != nil {
-			panic("Can't find connection string")
-		}
-
-		dbs, err := mongoHelper.ListDatabases(conStr)
-		if err != nil {
-			msg := fmt.Sprintln("Error while reading existing databases: \n%v", err)
+			msg := fmt.Sprintf("Error while reading existing databases: \n%v\n", err)
 			panic(msg)
 		}
 
@@ -46,8 +43,17 @@ var collectionsCmd = &cobra.Command{
 	Short: "Collections available in the specified database",
 	Long:  "Provides information about existing collections in the specified database",
 	Run: func(cmd *cobra.Command, args []string) {
-		// Logic for the greet command
-		fmt.Println("Run collectionsCmd")
+
+		collections, err := mongoHelper.ListCollections(mongoHelper.ConStr, database)
+		if err != nil {
+			msg := fmt.Sprintf("Error while reading collections for database (%s): \n%v\n", database, err)
+			panic(msg)
+		}
+
+		for _, s := range collections {
+			fmt.Println(s)
+		}
+
 	},
 }
 
@@ -66,5 +72,13 @@ func init() {
 	listCmd.AddCommand(collectionsCmd)
 	listCmd.AddCommand(indexesCmd)
 
-	databasesCmd.Flags().StringP("con_str", "c", "mongodb://{MONGO_USER}:{MONGO_PASSWORD}@localhost:27017/admin", "Connection string to mongodb")
+	collectionsCmd.Flags().StringVar(&database, "database", "", "Database to query existing collections")
+	collectionsCmd.MarkFlagRequired("database")
+
+	indexesCmd.Flags().StringVar(&database, "database", "", "Database to query existing collections")
+	indexesCmd.MarkFlagRequired("database")
+
+	indexesCmd.Flags().StringVar(&database, "collection", "", "Name of the collection to show the indexes")
+	indexesCmd.MarkFlagRequired("collection")
+
 }
