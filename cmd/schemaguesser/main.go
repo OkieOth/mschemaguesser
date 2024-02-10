@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
-	"okieoth/schemaguesser/internal/pkg/mongo"
+	"okieoth/schemaguesser/cmd/schemaguesser/cmd"
 )
 
 func main() {
-	fmt.Println("hello :)")
-	mongo.Dummy()
+	cmd.Execute()
 }
