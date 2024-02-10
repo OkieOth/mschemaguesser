@@ -16,6 +16,8 @@ var ConStr string
 func Connect(conStr string) (*mongo.Client, error) {
 	conStr2Use := utils.ReplaceWithEnvVar(conStr, "MONGO_USER", "admin")
 	conStr2Use = utils.ReplaceWithEnvVar(conStr2Use, "MONGO_PASSWORD", "secretpassword")
+	conStr2Use = utils.ReplaceWithEnvVar(conStr2Use, "MONGO_HOST", "localhost")
+	conStr2Use = utils.ReplaceWithEnvVar(conStr2Use, "MONGO_PORT", "27017")
 
 	return mongo.Connect(context.Background(), options.Client().ApplyURI(conStr2Use))
 }
@@ -78,5 +80,39 @@ func ListCollections(conStr string, databaseName string) ([]string, error) {
 	for _, collName := range cursor {
 		ret = append(ret, collName)
 	}
+	return ret, nil
+}
+
+func ListIndexes(conStr string, databaseName string, collectionName string) ([]string, error) {
+	var ret []string
+	client, err := Connect(conStr)
+	if err != nil {
+		return ret, err
+	}
+
+	defer func() {
+		if client == nil {
+			return
+		}
+		if err = client.Disconnect(context.Background()); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	db := client.Database(databaseName)
+	collection := db.Collection(collectionName)
+	indexView := collection.Indexes()
+	cursor, err := indexView.List(context.Background())
+
+	if err != nil {
+		log.Fatal(err)
+		return ret, err
+	}
+
+	for cursor.Next(context.Background()) {
+		bsonRaw := cursor.Current
+		ret = append(ret, bsonRaw.String())
+	}
+
 	return ret, nil
 }
