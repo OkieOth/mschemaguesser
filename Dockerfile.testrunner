@@ -12,4 +12,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /mschemaguesser cmd/schemaguesser/main.
 
 FROM build-stage AS run-test-stage
 
-RUN go test -v ./...
+RUN go test -v --skip "_IT" ./...
+
+CMD ["go", "test", "-v", "./..."]

@@ -33,9 +33,10 @@ services:
         DOCKER_BUILDKIT: 1
       dockerfile: Dockerfile.testrunner
     depends_on:
-      - mongo_init
+      mongo_init:
+        condition: service_healthy
     environment:
-      - RABBIT_SERVER=rabbitmq
+      - MONGO_HOST=mongodb
     networks:
       - test_network
 
