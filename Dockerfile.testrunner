@@ -5,10 +5,10 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY cmd ./
-COPY internal ./
+COPY cmd ./cmd
+COPY internal ./internal
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /mschemaguesser
+RUN CGO_ENABLED=0 GOOS=linux go build -o /mschemaguesser cmd/schemaguesser/main.go
 
 FROM build-stage AS run-test-stage
 

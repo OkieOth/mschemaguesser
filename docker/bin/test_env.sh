@@ -2,7 +2,7 @@
 
 scriptPos=${0%/*}
 
-COMPOSE_FILE=$scriptPos/../test_mongoschema.yaml
+COMPOSE_FILE=$scriptPos/../test_env.yaml
 
 function start() {
   echo "Starting Docker Compose environment..."
