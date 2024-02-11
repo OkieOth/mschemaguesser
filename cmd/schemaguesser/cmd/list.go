@@ -8,7 +8,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var database string
+var databaseName string
+
+var collectionName string
 
 var listCmd = &cobra.Command{
 	Use:   "list",
@@ -25,13 +27,11 @@ var databasesCmd = &cobra.Command{
 	Short: "Names of databases available in the connected server",
 	Long:  "Prints a list of available databases i the connected server",
 	Run: func(cmd *cobra.Command, args1 []string) {
-
 		dbs, err := mongoHelper.ListDatabases(mongoHelper.ConStr)
 		if err != nil {
 			msg := fmt.Sprintf("Error while reading existing databases: \n%v\n", err)
 			panic(msg)
 		}
-
 		for _, s := range dbs {
 			fmt.Println(s)
 		}
@@ -43,17 +43,14 @@ var collectionsCmd = &cobra.Command{
 	Short: "Collections available in the specified database",
 	Long:  "Provides information about existing collections in the specified database",
 	Run: func(cmd *cobra.Command, args []string) {
-
-		collections, err := mongoHelper.ListCollections(mongoHelper.ConStr, database)
+		collections, err := mongoHelper.ListCollections(mongoHelper.ConStr, databaseName)
 		if err != nil {
-			msg := fmt.Sprintf("Error while reading collections for database (%s): \n%v\n", database, err)
+			msg := fmt.Sprintf("Error while reading collections for database (%s): \n%v\n", databaseName, err)
 			panic(msg)
 		}
-
 		for _, s := range collections {
 			fmt.Println(s)
 		}
-
 	},
 }
 
@@ -62,8 +59,14 @@ var indexesCmd = &cobra.Command{
 	Short: "Indexes to a given collection",
 	Long:  "Provides information about indexes of a given collection",
 	Run: func(cmd *cobra.Command, args []string) {
-		// Logic for the greet command
-		fmt.Println("Run indexesCmd")
+		indexes, err := mongoHelper.ListIndexes(mongoHelper.ConStr, databaseName, collectionName)
+		if err != nil {
+			msg := fmt.Sprintf("Error while reading indexes for collection (%s.%s): \n%v\n", databaseName, collectionName, err)
+			panic(msg)
+		}
+		for _, s := range indexes {
+			fmt.Println(s)
+		}
 	},
 }
 
@@ -72,13 +75,12 @@ func init() {
 	listCmd.AddCommand(collectionsCmd)
 	listCmd.AddCommand(indexesCmd)
 
-	collectionsCmd.Flags().StringVar(&database, "database", "", "Database to query existing collections")
+	collectionsCmd.Flags().StringVar(&databaseName, "database", "", "Database to query existing collections")
 	collectionsCmd.MarkFlagRequired("database")
 
-	indexesCmd.Flags().StringVar(&database, "database", "", "Database to query existing collections")
+	indexesCmd.Flags().StringVar(&databaseName, "database", "", "Database to query existing collections")
 	indexesCmd.MarkFlagRequired("database")
 
-	indexesCmd.Flags().StringVar(&database, "collection", "", "Name of the collection to show the indexes")
+	indexesCmd.Flags().StringVar(&collectionName, "collection", "", "Name of the collection to show the indexes")
 	indexesCmd.MarkFlagRequired("collection")
-
 }

@@ -21,7 +21,7 @@ func init() {
 	rootCmd.AddCommand(schemaCmd)
 	rootCmd.AddCommand(listCmd)
 
-	rootCmd.PersistentFlags().StringVar(&mongoHelper.ConStr, "con_str", "mongodb://{MONGO_USER}:{MONGO_PASSWORD}@localhost:27017/admin", "Connection string to mongodb")
+	rootCmd.PersistentFlags().StringVar(&mongoHelper.ConStr, "con_str", "mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/admin", "Connection string to mongodb")
 	collectionsCmd.MarkFlagRequired("database")
 
 }

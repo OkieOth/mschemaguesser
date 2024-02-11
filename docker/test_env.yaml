@@ -1,0 +1,45 @@
+version: "3"
+services:
+  mongodb:
+    image: mongo:4
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: secretpassword
+    networks:
+      - test_network
+
+  mongo_init:
+    image: mongo:4
+    depends_on:
+      - mongodb
+    command: ["/prepare_mongo.sh"]
+    volumes:
+      - ./resources/init.js:/initdb.d/init.js
+      - ./resources/prepare_mongo.sh:/prepare_mongo.sh
+    healthcheck:
+      test: ["CMD-SHELL", "cat /done.txt"]
+      interval: 5s
+      timeout: 1s
+      retries: 100
+    networks:
+      - test_network
+
+  test_runner:
+    build:
+      context: ..
+      args:
+        DOCKER_BUILDKIT: 1
+      dockerfile: Dockerfile.testrunner
+    depends_on:
+      mongo_init:
+        condition: service_healthy
+    environment:
+      - MONGO_HOST=mongodb
+    networks:
+      - test_network
+
+networks:
+  test_network:
+    driver: bridge

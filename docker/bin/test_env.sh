@@ -2,7 +2,7 @@
 
 scriptPos=${0%/*}
 
-COMPOSE_FILE=$scriptPos/../test_mongoschema.yaml
+COMPOSE_FILE=$scriptPos/../test_env.yaml
 
 function start() {
   echo "Starting Docker Compose environment..."
@@ -12,6 +12,11 @@ function start() {
 function stop() {
   echo "Stopping Docker Compose environment..."
   docker compose -f $COMPOSE_FILE down
+}
+
+function test() {
+  echo "Run the docker compose based tests..."
+  docker compose -f $COMPOSE_FILE up --build --abort-on-container-exit --exit-code-from test_runner
 }
 
 function destroy() {
@@ -25,6 +30,9 @@ case "$1" in
     ;;
   stop)
     stop
+    ;;
+  test)
+    test
     ;;
   destroy)
     destroy
