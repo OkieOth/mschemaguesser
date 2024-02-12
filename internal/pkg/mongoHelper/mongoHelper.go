@@ -116,3 +116,38 @@ func ListIndexes(conStr string, databaseName string, collectionName string) ([]s
 
 	return ret, nil
 }
+
+func QueryCollection(conStr string, databaseName string, collectionName string, itemCount int) ([]bson.Raw, error) {
+	var ret []bson.Raw
+	client, err := Connect(conStr)
+	if err != nil {
+		return ret, err
+	}
+
+	defer func() {
+		if client == nil {
+			return
+		}
+		if err = client.Disconnect(context.Background()); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	db := client.Database(databaseName)
+	collection := db.Collection(collectionName)
+	cursor, err := collection.Find(context.Background(), bson.M{})
+
+	if err != nil {
+		log.Fatal(err)
+		return ret, err
+	}
+
+	i := 0
+	for cursor.Next(context.Background()) && i < itemCount {
+		bsonRaw := cursor.Current
+		ret = append(ret, bsonRaw)
+		i++
+	}
+
+	return ret, nil
+}

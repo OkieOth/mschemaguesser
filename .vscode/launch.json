@@ -11,8 +11,11 @@
             "mode": "auto",
             "program": "${fileDirname}",
             "args": [
-                "list",
-                "databases"
+                "schema",
+                "--database",
+                "dummy",
+                "--collection",
+                "c1"
             ]
         }
     ]
