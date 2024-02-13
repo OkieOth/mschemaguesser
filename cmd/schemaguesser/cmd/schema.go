@@ -24,8 +24,13 @@ var schemaCmd = &cobra.Command{
 			msg := fmt.Sprintf("Error while reading indexes for collection (%s.%s): \n%v\n", databaseName, collectionName, err)
 			panic(msg)
 		}
-		for _, b := range bsonRaw {
-			mongoHelper.ProcessBson(b, collectionName)
+		var otherComplexTypes = make([]mongoHelper.ComplexType, 1)
+		var mainType mongoHelper.ComplexType
+		for i, b := range bsonRaw {
+			if i > 10 {
+				break
+			}
+			err = mongoHelper.ProcessBson(b, collectionName, &mainType, &otherComplexTypes)
 			fmt.Println(b)
 		}
 	},
