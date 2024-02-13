@@ -1,6 +1,7 @@
 package mongoHelper
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"unicode"
@@ -63,18 +64,20 @@ func getAlreadyStoredType(otherComplexTypes *[]ComplexType, typeName string) (Co
 }
 
 func hasAlreadyPropertyAndIsBasicType(mainType *ComplexType, attribName string) bool {
-	for mainType
-	return false // TODO
+	for _, p := range mainType.Properties {
+		if p.AttribName == attribName {
+			return !(p.IsArray || p.IsComplex)
+		}
+	}
+	return false
 }
 
 func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, otherComplexTypes *[]ComplexType) error {
 	if mainType == nil {
-		log.Fatal("no mainType given")
-		return
+		return errors.New("no mainType given")
 	}
 	if otherComplexTypes == nil {
-		log.Fatal("no otherComplexTypes given")
-		return
+		return errors.New("no otherComplexTypes given")
 	}
 	elements, err := doc.Elements()
 	if err != nil {
@@ -97,6 +100,13 @@ func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, oth
 			handleTypeDouble(elem, &typeInfo)
 		case bson.TypeEmbeddedDocument:
 			newTypeName := collectionName + firstUpperCase(elem.Key())
+			newSchemaType, newOne := getAlreadyStoredType(otherComplexTypes, newTypeName)
+			if !newOne {
+				newSchemaType = ComplexType{}
+			}
+			typeInfo.ValueType = newTypeName
+			handleTypeEmbeddedDocument(elem, &typeInfo, &newSchemaType, otherComplexTypes, newTypeName, true)
+			addNewOtherComplexType(otherComplexTypes, newSchemaType)
 			typeInfo.ValueType = newTypeName
 			handleTypeEmbeddedDocument(elem, &typeInfo, mainType, otherComplexTypes, mainType.Name, false)
 		case bson.TypeArray:
@@ -164,8 +174,11 @@ func handleTypeEmbeddedDocument(elem bson.RawElement, typeInfo *BasicElemInfo, s
 			case bson.TypeDouble:
 				handleTypeDouble(elem, &typeInfo)
 			case bson.TypeEmbeddedDocument:
-				var newSchemaType ComplexType
 				newTypeName := schemaType.Name + firstUpperCase(elem.Key())
+				newSchemaType, newOne := getAlreadyStoredType(otherComplexTypes, newTypeName)
+				if !newOne {
+					newSchemaType = ComplexType{}
+				}
 				typeInfo.ValueType = newTypeName
 				handleTypeEmbeddedDocument(elem, &typeInfo, &newSchemaType, otherComplexTypes, schemaType.Name, true)
 				addNewOtherComplexType(otherComplexTypes, newSchemaType)
@@ -225,6 +238,7 @@ func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplex
 	}
 
 	var lastType *bsontype.Type
+	var complexArrayType ComplexType
 	for _, elem := range elements {
 		if (lastType != nil) && (*lastType != elem.Value().Type) {
 			typeInfo.Comment = "array type consists of different types, multiple type arrays are not supported"
@@ -237,10 +251,14 @@ func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplex
 			case bson.TypeDouble:
 				handleTypeDouble(elem, typeInfo)
 			case bson.TypeEmbeddedDocument:
-				var newSchemaType ComplexType
+				newSchemaType, newOne := getAlreadyStoredType(otherComplexTypes, newTypeName)
+				if !newOne {
+					newSchemaType = ComplexType{}
+				}
 				typeInfo.ValueType = newTypeName
 				handleTypeEmbeddedDocument(elem, typeInfo, &newSchemaType, otherComplexTypes, newTypeName, true)
 				addNewOtherComplexType(otherComplexTypes, newSchemaType)
+				complexArrayType = newSchemaType
 			case bson.TypeArray:
 				handleTypeArray(elem, typeInfo, otherComplexTypes, newTypeName)
 			case bson.TypeBinary:
@@ -280,6 +298,10 @@ func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplex
 			}
 		} else {
 			// only complex types needs to be reviewed for additional attributes
+			if elem.Value().Type == bson.TypeEmbeddedDocument {
+				handleTypeEmbeddedDocument(elem, typeInfo, &complexArrayType, otherComplexTypes, newTypeName, true)
+			}
+
 		}
 	}
 
