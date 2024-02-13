@@ -25,7 +25,7 @@ var schemaCmd = &cobra.Command{
 			panic(msg)
 		}
 		for _, b := range bsonRaw {
-			mongoHelper.ProcessBson(b)
+			mongoHelper.ProcessBson(b, collectionName)
 			fmt.Println(b)
 		}
 	},
