@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "{{ .MainType.Name }}",
+  "description": "Storage model for database: {{ .Database }}, collection: {{ .Collection }}",
+  "version": "0.0.0",
+  "type": "object",
+  "properties": {
+    {{- $lastIndexProps := LastIndexProps .MainType.Properties -}}
+    {{ range $index, $prop := .MainType.Properties }}
+      "{{ $prop.AttribName }}": {
+      {{ if $prop.IsArray }}
+        "type": "array",
+        "items": {
+        {{ if $prop.IsComplex }}
+          "$ref": "#/definitions/{{ $prop.ValueType }}"
+        {{ else -}}
+          "type": "{{ $prop.ValueType }}"
+        {{- end }}
+      {{- else -}}
+         {{- if $prop.IsComplex -}}
+        "$ref": "#/definitions/{{ $prop.ValueType }}"
+         {{- else -}}
+        "type": "{{ $prop.ValueType }}"
+         {{- end }}
+      {{- end }}
+    }{{ if ne $index $lastIndexProps }},{{ end }}
+    {{ end }}
+  },
+
+  "definitions": {
+    {{- $lastIndexOthers := LastIndexTypes .OtherComplexTypes -}}
+    {{ range $index, $type := .OtherComplexTypes -}}
+    "{{ $type.Name }}": {
+      "type": "object",
+      "properties": {
+        {{- $lastIndexProps := LastIndexProps $type.Properties -}}
+        {{ range $index, $prop := $type.Properties -}}
+          "{{ $prop.AttribName }}": {
+          {{ if $prop.IsArray -}}
+          "type": "array",
+          "items": {
+            {{- if $prop.IsComplex }}
+            "$ref": "#/definitions/{{ $prop.ValueType }}"
+            {{ else }}
+            "type": "{{ $prop.ValueType }}"
+            {{- end }}
+          }
+          {{- else -}}
+            {{ if $prop.IsComplex -}}
+          "$ref": "#/definitions/{{ $prop.ValueType }}"
+            {{- else -}}
+          "type": "{{ $prop.ValueType }}"
+            {{- end -}}
+          {{- end }}
+        }{{ if ne $index $lastIndexProps }},{{ end }}
+        {{ end }}
+      }
+    }{{ if ne $index $lastIndexOthers }},{{ end }}
+    {{ end }}
+  }
+}

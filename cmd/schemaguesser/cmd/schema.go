@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
+	"okieoth/schemaguesser/internal/pkg/schema"
 
 	"github.com/spf13/cobra"
 )
@@ -14,25 +15,27 @@ var colName string
 
 var outputDir string
 
+var itemCount int32
+
 var schemaCmd = &cobra.Command{
 	Use:   "schema",
 	Short: "functions around the schemas",
 	Long:  "With this command you can create schemas out of mongodb collection",
 	Run: func(cmd *cobra.Command, args []string) {
-		bsonRaw, err := mongoHelper.QueryCollection(mongoHelper.ConStr, dbName, colName, 100)
+		bsonRaw, err := mongoHelper.QueryCollection(mongoHelper.ConStr, dbName, colName, int(itemCount))
 		if err != nil {
-			msg := fmt.Sprintf("Error while reading indexes for collection (%s.%s): \n%v\n", databaseName, collectionName, err)
+			msg := fmt.Sprintf("Error while reading indexes for collection (%s.%s): \n%v\n", databaseName, colName, err)
 			panic(msg)
 		}
-		var otherComplexTypes = make([]mongoHelper.ComplexType, 1)
+		var otherComplexTypes []mongoHelper.ComplexType
 		var mainType mongoHelper.ComplexType
-		for i, b := range bsonRaw {
-			if i > 10 {
-				break
+		for _, b := range bsonRaw {
+			err = mongoHelper.ProcessBson(b, colName, &mainType, &otherComplexTypes)
+			if err != nil {
+				fmt.Printf("Error while processing bson for schema: %v", err)
 			}
-			err = mongoHelper.ProcessBson(b, collectionName, &mainType, &otherComplexTypes)
-			fmt.Println(b)
 		}
+		schema.PrintSchema(dbName, colName, &mainType, otherComplexTypes)
 	},
 }
 
@@ -44,4 +47,6 @@ func init() {
 	schemaCmd.MarkFlagRequired("collection")
 
 	schemaCmd.Flags().StringVar(&outputDir, "output_dir", "", "Directory to write the created schema file")
+
+	schemaCmd.Flags().Int32Var(&itemCount, "item_count", 100, "Number of collection entries used to build the schema")
 }

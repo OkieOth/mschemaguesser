@@ -15,7 +15,7 @@
                 "--database",
                 "dummy",
                 "--collection",
-                "c1"
+                "c2"
             ]
         }
     ]

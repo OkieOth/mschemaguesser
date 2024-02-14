@@ -53,23 +53,36 @@ func addNewOtherComplexType(otherComplexTypes *[]ComplexType, complexType Comple
 	*otherComplexTypes = append(*otherComplexTypes, complexType)
 }
 
+func addNewProperty(properties *[]BasicElemInfo, prop BasicElemInfo) {
+	for i, e := range *properties {
+		if e.AttribName == prop.AttribName {
+			(*properties)[i] = prop
+			return
+		}
+	}
+	*properties = append(*properties, prop)
+}
+
 func getAlreadyStoredType(otherComplexTypes *[]ComplexType, typeName string) (ComplexType, bool) {
-	var complexType *ComplexType
 	for i, e := range *otherComplexTypes {
-		if e.Name == complexType.Name {
+		if e.Name == typeName {
 			return (*otherComplexTypes)[i], true
 		}
 	}
 	return ComplexType{}, false
 }
 
-func hasAlreadyPropertyAndIsBasicType(mainType *ComplexType, attribName string) bool {
+func hasAlreadyProperty(mainType *ComplexType, attribName string) bool {
 	for _, p := range mainType.Properties {
 		if p.AttribName == attribName {
-			return !(p.IsArray || p.IsComplex)
+			return true
 		}
 	}
 	return false
+}
+
+func isBasicType(elem bson.RawElement) bool {
+	return !((elem.Value().Type == bson.TypeArray) || (elem.Value().Type == bson.TypeEmbeddedDocument))
 }
 
 func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, otherComplexTypes *[]ComplexType) error {
@@ -89,17 +102,19 @@ func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, oth
 		mainType.Name = colNameFirstUpper
 	}
 	for _, elem := range elements {
-		if hasAlreadyPropertyAndIsBasicType(mainType, elem.Key()) {
+		isAlreadyThere := hasAlreadyProperty(mainType, elem.Key())
+		if isAlreadyThere && isBasicType(elem) {
 			continue
 		}
 		typeInfo := BasicElemInfo{AttribName: elem.Key()}
 		typeInfo.AttribName = elem.Key()
-		mainType.Properties = append(mainType.Properties, typeInfo)
 		switch elem.Value().Type {
+		case bson.TypeString:
+			handleTypeString(elem, &typeInfo)
 		case bson.TypeDouble:
 			handleTypeDouble(elem, &typeInfo)
 		case bson.TypeEmbeddedDocument:
-			newTypeName := collectionName + firstUpperCase(elem.Key())
+			newTypeName := firstUpperCase(collectionName) + firstUpperCase(elem.Key())
 			newSchemaType, newOne := getAlreadyStoredType(otherComplexTypes, newTypeName)
 			if !newOne {
 				newSchemaType = ComplexType{}
@@ -107,8 +122,6 @@ func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, oth
 			typeInfo.ValueType = newTypeName
 			handleTypeEmbeddedDocument(elem, &typeInfo, &newSchemaType, otherComplexTypes, newTypeName, true)
 			addNewOtherComplexType(otherComplexTypes, newSchemaType)
-			typeInfo.ValueType = newTypeName
-			handleTypeEmbeddedDocument(elem, &typeInfo, mainType, otherComplexTypes, mainType.Name, false)
 		case bson.TypeArray:
 			handleTypeArray(elem, &typeInfo, otherComplexTypes, mainType.Name)
 		case bson.TypeBinary:
@@ -146,8 +159,14 @@ func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, oth
 		case bson.TypeMaxKey:
 			handleTypeMaxKey(elem, &typeInfo)
 		}
+		addNewProperty(&mainType.Properties, typeInfo)
 	}
 	return nil
+}
+
+func handleTypeString(elem bson.RawElement, typeInfo *BasicElemInfo) {
+	typeInfo.ValueType = STRING
+	typeInfo.BsonType = STRING
 }
 
 func handleTypeDouble(elem bson.RawElement, typeInfo *BasicElemInfo) {
@@ -169,8 +188,9 @@ func handleTypeEmbeddedDocument(elem bson.RawElement, typeInfo *BasicElemInfo, s
 		for _, elem := range elements {
 			typeInfo := BasicElemInfo{AttribName: elem.Key()}
 			typeInfo.AttribName = elem.Key()
-			schemaType.Properties = append(schemaType.Properties, typeInfo)
 			switch elem.Value().Type {
+			case bson.TypeString:
+				handleTypeString(elem, &typeInfo)
 			case bson.TypeDouble:
 				handleTypeDouble(elem, &typeInfo)
 			case bson.TypeEmbeddedDocument:
@@ -219,6 +239,8 @@ func handleTypeEmbeddedDocument(elem bson.RawElement, typeInfo *BasicElemInfo, s
 			case bson.TypeMaxKey:
 				handleTypeMaxKey(elem, &typeInfo)
 			}
+			addNewProperty(&schemaType.Properties, typeInfo)
+
 		}
 	}
 }
@@ -248,6 +270,8 @@ func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplex
 
 		if lastType == nil {
 			switch elem.Value().Type {
+			case bson.TypeString:
+				handleTypeString(elem, typeInfo)
 			case bson.TypeDouble:
 				handleTypeDouble(elem, typeInfo)
 			case bson.TypeEmbeddedDocument:
