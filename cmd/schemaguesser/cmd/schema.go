@@ -35,7 +35,7 @@ var schemaCmd = &cobra.Command{
 				fmt.Printf("Error while processing bson for schema: %v", err)
 			}
 		}
-		schema.PrintSchema(dbName, colName, &mainType, otherComplexTypes)
+		schema.PrintSchema(dbName, colName, &mainType, otherComplexTypes, outputDir)
 	},
 }
 
@@ -46,7 +46,7 @@ func init() {
 	schemaCmd.Flags().StringVar(&colName, "collection", "", "Name of the collection to show the indexes")
 	schemaCmd.MarkFlagRequired("collection")
 
-	schemaCmd.Flags().StringVar(&outputDir, "output_dir", "", "Directory to write the created schema file")
+	schemaCmd.Flags().StringVar(&outputDir, "output", "stdout", "stdout or the directory to write the created schema file, default is 'stdout'")
 
 	schemaCmd.Flags().Int32Var(&itemCount, "item_count", 100, "Number of collection entries used to build the schema")
 }

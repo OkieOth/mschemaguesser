@@ -250,6 +250,8 @@ func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplex
 
 	typeInfo.IsArray = true
 	typeInfo.ArrayDimensions++
+	typeInfo.BsonType = "couldn't be retrieved - no elems"
+	typeInfo.ValueType = OBJECT
 	newTypeName := prefix + firstUpperCase(elem.Key())
 
 	elements, err := arrayRaw.Elements()
