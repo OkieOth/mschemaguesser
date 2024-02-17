@@ -151,3 +151,21 @@ func QueryCollection(conStr string, databaseName string, collectionName string, 
 
 	return ret, nil
 }
+
+func ReadCollectionsOrPanic(dbName string) *[]string {
+	collections, err := ListCollections(ConStr, dbName)
+	if err != nil {
+		msg := fmt.Sprintf("Error while reading collections for database (%s): \n%v\n", dbName, err)
+		panic(msg)
+	}
+	return &collections
+}
+
+func ReadDatabasesOrPanic() *[]string {
+	dbs, err := ListDatabases(ConStr)
+	if err != nil {
+		msg := fmt.Sprintf("Error while reading existing databases: \n%v\n", err)
+		panic(msg)
+	}
+	return &dbs
+}
