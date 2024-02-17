@@ -3,7 +3,7 @@
   "title": "{{ .MainType.Name }}",
   "description": "Storage model for database: {{ .Database }}, collection: {{ .Collection }}",
   "version": "0.0.0",
-  "x-model-type": "mongodb-storage-model"
+  "x-model-type": "mongodb-storage-model",
   "type": "object",
   "properties": {
     {{ $lastIndexProps := LastIndexProps .MainType.Properties -}}
@@ -29,7 +29,7 @@
   "definitions": {
     {{ $lastIndexOthers := LastIndexTypes .OtherComplexTypes -}}
     {{- range $index, $type := .OtherComplexTypes -}}
-    "{{- $type.Name }}": {
+    "{{ $type.Name }}": {
       "type": "object",
       "properties": {
         {{- $lastIndexProps := LastIndexProps $type.Properties -}}
@@ -49,10 +49,10 @@
           {{- else -}} "type": "{{ $prop.ValueType }}"
           {{- end }}
           {{- end }}
-        }{{ if ne $index $lastIndexProps }},{{ end }}
+        }{{ if ne $index $lastIndexProps }},{{ end -}}
         {{- end }}
       }
     }{{ if ne $index $lastIndexOthers }},{{ end }}
-    {{- end }}
+    {{ end }}
   }
 }
