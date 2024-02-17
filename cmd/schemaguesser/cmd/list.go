@@ -43,13 +43,10 @@ var collectionsCmd = &cobra.Command{
 	Short: "Collections available in the specified database",
 	Long:  "Provides information about existing collections in the specified database",
 	Run: func(cmd *cobra.Command, args []string) {
-		collections, err := mongoHelper.ListCollections(mongoHelper.ConStr, databaseName)
-		if err != nil {
-			msg := fmt.Sprintf("Error while reading collections for database (%s): \n%v\n", databaseName, err)
-			panic(msg)
-		}
-		for _, s := range collections {
-			fmt.Println(s)
+		if databaseName == "all" {
+			printAllCollections()
+		} else {
+			printOneCollection(databaseName, false)
 		}
 	},
 }
@@ -75,12 +72,38 @@ func init() {
 	listCmd.AddCommand(collectionsCmd)
 	listCmd.AddCommand(indexesCmd)
 
-	collectionsCmd.Flags().StringVar(&databaseName, "database", "", "Database to query existing collections")
+	collectionsCmd.Flags().StringVar(&databaseName, "database", "", "Database to query existing collections. If 'all', then the collections of all databases are printed.")
 	collectionsCmd.MarkFlagRequired("database")
 
-	indexesCmd.Flags().StringVar(&databaseName, "database", "", "Database to query existing collections")
+	indexesCmd.Flags().StringVar(&databaseName, "database", "", "Database to query existing collections. If 'all', then the collections of all databases are printed.")
 	indexesCmd.MarkFlagRequired("database")
 
-	indexesCmd.Flags().StringVar(&collectionName, "collection", "", "Name of the collection to show the indexes")
+	indexesCmd.Flags().StringVar(&collectionName, "collection", "", "Name of the collection to show the indexes.  If 'all', then the collections of all databases are printed.")
 	indexesCmd.MarkFlagRequired("collection")
+}
+
+func printOneCollection(dbName string, printDbName bool) {
+	collections, err := mongoHelper.ListCollections(mongoHelper.ConStr, dbName)
+	if err != nil {
+		msg := fmt.Sprintf("Error while reading collections for database (%s): \n%v\n", databaseName, err)
+		panic(msg)
+	}
+	for _, s := range collections {
+		if printDbName {
+			fmt.Printf("Database: %s, Collection: %s\n", dbName, s)
+		} else {
+			fmt.Println(s)
+		}
+	}
+}
+
+func printAllCollections() {
+	dbs, err := mongoHelper.ListDatabases(mongoHelper.ConStr)
+	if err != nil {
+		msg := fmt.Sprintf("Error while reading existing databases: \n%v\n", err)
+		panic(msg)
+	}
+	for _, db := range dbs {
+		printOneCollection(db, true)
+	}
 }

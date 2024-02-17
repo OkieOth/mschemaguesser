@@ -3,6 +3,7 @@
   "title": "{{ .MainType.Name }}",
   "description": "Storage model for database: {{ .Database }}, collection: {{ .Collection }}",
   "version": "0.0.0",
+  "x-model-type": "mongodb-storage-model"
   "type": "object",
   "properties": {
     {{ $lastIndexProps := LastIndexProps .MainType.Properties -}}
