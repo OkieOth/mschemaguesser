@@ -27,12 +27,8 @@ var databasesCmd = &cobra.Command{
 	Short: "Names of databases available in the connected server",
 	Long:  "Prints a list of available databases i the connected server",
 	Run: func(cmd *cobra.Command, args1 []string) {
-		dbs, err := mongoHelper.ListDatabases(mongoHelper.ConStr)
-		if err != nil {
-			msg := fmt.Sprintf("Error while reading existing databases: \n%v\n", err)
-			panic(msg)
-		}
-		for _, s := range dbs {
+		dbs := mongoHelper.ReadDatabasesOrPanic()
+		for _, s := range *dbs {
 			fmt.Println(s)
 		}
 	},
@@ -56,13 +52,15 @@ var indexesCmd = &cobra.Command{
 	Short: "Indexes to a given collection",
 	Long:  "Provides information about indexes of a given collection",
 	Run: func(cmd *cobra.Command, args []string) {
-		indexes, err := mongoHelper.ListIndexes(mongoHelper.ConStr, databaseName, collectionName)
-		if err != nil {
-			msg := fmt.Sprintf("Error while reading indexes for collection (%s.%s): \n%v\n", databaseName, collectionName, err)
-			panic(msg)
-		}
-		for _, s := range indexes {
-			fmt.Println(s)
+
+		if databaseName == "all" {
+			printIndexesForAllDatabases()
+		} else {
+			if collectionName == "all" {
+				printIndexesForAllCollections(databaseName)
+			} else {
+				printIndexesForOneCollection(databaseName, collectionName, false)
+			}
 		}
 	},
 }
@@ -72,24 +70,16 @@ func init() {
 	listCmd.AddCommand(collectionsCmd)
 	listCmd.AddCommand(indexesCmd)
 
-	collectionsCmd.Flags().StringVar(&databaseName, "database", "", "Database to query existing collections. If 'all', then the collections of all databases are printed.")
-	collectionsCmd.MarkFlagRequired("database")
+	collectionsCmd.Flags().StringVar(&databaseName, "database", "all", "Database to query existing collections. If 'all', then the collections of all databases are printed.")
 
-	indexesCmd.Flags().StringVar(&databaseName, "database", "", "Database to query existing collections. If 'all', then the collections of all databases are printed.")
-	indexesCmd.MarkFlagRequired("database")
-
-	indexesCmd.Flags().StringVar(&collectionName, "collection", "", "Name of the collection to show the indexes.  If 'all', then the collections of all databases are printed.")
-	indexesCmd.MarkFlagRequired("collection")
+	indexesCmd.Flags().StringVar(&databaseName, "database", "all", "Database to query existing collections. If 'all', then the collections of all databases are printed.")
+	indexesCmd.Flags().StringVar(&collectionName, "collection", "all", "Name of the collection to show the indexes.  If 'all', then the collections of all databases are printed.")
 }
 
-func printOneCollection(dbName string, printDbName bool) {
-	collections, err := mongoHelper.ListCollections(mongoHelper.ConStr, dbName)
-	if err != nil {
-		msg := fmt.Sprintf("Error while reading collections for database (%s): \n%v\n", databaseName, err)
-		panic(msg)
-	}
-	for _, s := range collections {
-		if printDbName {
+func printOneCollection(dbName string, verbose bool) {
+	collections := mongoHelper.ReadCollectionsOrPanic(dbName)
+	for _, s := range *collections {
+		if verbose {
 			fmt.Printf("Database: %s, Collection: %s\n", dbName, s)
 		} else {
 			fmt.Println(s)
@@ -98,12 +88,37 @@ func printOneCollection(dbName string, printDbName bool) {
 }
 
 func printAllCollections() {
-	dbs, err := mongoHelper.ListDatabases(mongoHelper.ConStr)
+	dbs := mongoHelper.ReadDatabasesOrPanic()
+	for _, db := range *dbs {
+		printOneCollection(db, true)
+	}
+}
+
+func printIndexesForOneCollection(dbName string, collName string, verbose bool) {
+	indexes, err := mongoHelper.ListIndexes(mongoHelper.ConStr, dbName, collName)
 	if err != nil {
-		msg := fmt.Sprintf("Error while reading existing databases: \n%v\n", err)
+		msg := fmt.Sprintf("Error while reading indexes for collection (%s.%s): \n%v\n", dbName, collName, err)
 		panic(msg)
 	}
-	for _, db := range dbs {
-		printOneCollection(db, true)
+	for _, s := range indexes {
+		if verbose {
+			fmt.Printf("Database: %s, Collection: %s, Index: %s\n", dbName, collName, s)
+		} else {
+			fmt.Println(s)
+		}
+	}
+}
+
+func printIndexesForAllCollections(dbName string) {
+	collections := mongoHelper.ReadCollectionsOrPanic(dbName)
+	for _, coll := range *collections {
+		printIndexesForOneCollection(dbName, coll, true)
+	}
+}
+
+func printIndexesForAllDatabases() {
+	dbs := mongoHelper.ReadDatabasesOrPanic()
+	for _, db := range *dbs {
+		printIndexesForAllCollections(db)
 	}
 }

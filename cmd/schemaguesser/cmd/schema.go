@@ -40,11 +40,9 @@ var schemaCmd = &cobra.Command{
 }
 
 func init() {
-	schemaCmd.Flags().StringVar(&dbName, "database", "", "Database to query existing collections")
-	schemaCmd.MarkFlagRequired("database")
+	schemaCmd.Flags().StringVar(&dbName, "database", "all", "Database to query existing collections")
 
-	schemaCmd.Flags().StringVar(&colName, "collection", "", "Name of the collection to show the indexes")
-	schemaCmd.MarkFlagRequired("collection")
+	schemaCmd.Flags().StringVar(&colName, "collection", "all", "Name of the collection to show the indexes")
 
 	schemaCmd.Flags().StringVar(&outputDir, "output", "stdout", "stdout or the directory to write the created schema file, default is 'stdout'")
 
