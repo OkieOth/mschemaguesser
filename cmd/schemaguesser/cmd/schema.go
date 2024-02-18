@@ -28,7 +28,7 @@ var schemaCmd = &cobra.Command{
 			if colName == "all" {
 				printSchemasForAllCollections(dbName)
 			} else {
-				printSchemaForOneCollection(dbName, colName)
+				printSchemaForOneCollection(dbName, colName, false)
 			}
 		}
 
@@ -45,7 +45,14 @@ func init() {
 	schemaCmd.Flags().Int32Var(&itemCount, "item_count", 100, "Number of collection entries used to build the schema")
 }
 
-func printSchemaForOneCollection(dbName string, collName string) {
+func printSchemaForOneCollection(dbName string, collName string, doRecover bool) {
+	defer func() {
+		if doRecover {
+			if r := recover(); r != nil {
+				fmt.Printf("Recovered while handling collection (db: %s, collection: %s): %v", dbName, collName, r)
+			}
+		}
+	}()
 	bsonRaw, err := mongoHelper.QueryCollection(mongoHelper.ConStr, dbName, collName, int(itemCount))
 	if err != nil {
 		msg := fmt.Sprintf("Error while reading data for collection (%s.%s): \n%v\n", dbName, collName, err)
@@ -65,7 +72,7 @@ func printSchemaForOneCollection(dbName string, collName string) {
 func printSchemasForAllCollections(dbName string) {
 	collections := mongoHelper.ReadCollectionsOrPanic(dbName)
 	for _, coll := range *collections {
-		printSchemaForOneCollection(dbName, coll)
+		printSchemaForOneCollection(dbName, coll, true)
 	}
 }
 

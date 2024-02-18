@@ -3,7 +3,6 @@ package mongoHelper
 import (
 	"context"
 	"fmt"
-	"log"
 	"okieoth/schemaguesser/internal/pkg/utils"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -38,14 +37,13 @@ func ListDatabases(conStr string) ([]string, error) {
 			return
 		}
 		if err = client.Disconnect(context.Background()); err != nil {
-			log.Fatal(err)
+			println("Error while disconnect: %v", err)
 		}
 	}()
 
 	cursor, err := client.ListDatabases(context.Background(), bson.M{})
 	if err != nil {
-		log.Fatal(err)
-		return ret, err
+		panic(err)
 	}
 
 	for _, db := range cursor.Databases {
@@ -66,15 +64,14 @@ func ListCollections(conStr string, databaseName string) ([]string, error) {
 			return
 		}
 		if err = client.Disconnect(context.Background()); err != nil {
-			log.Fatal(err)
+			println("Error while disconnect: %v", err)
 		}
 	}()
 
 	db := client.Database(databaseName)
 	cursor, err := db.ListCollectionNames(context.Background(), bson.M{})
 	if err != nil {
-		log.Fatal(err)
-		return ret, err
+		panic(err)
 	}
 
 	for _, collName := range cursor {
@@ -95,7 +92,7 @@ func ListIndexes(conStr string, databaseName string, collectionName string) ([]s
 			return
 		}
 		if err = client.Disconnect(context.Background()); err != nil {
-			log.Fatal(err)
+			println("Error while disconnect: %v", err)
 		}
 	}()
 
@@ -105,8 +102,7 @@ func ListIndexes(conStr string, databaseName string, collectionName string) ([]s
 	cursor, err := indexView.List(context.Background())
 
 	if err != nil {
-		log.Fatal(err)
-		return ret, err
+		panic(err)
 	}
 
 	for cursor.Next(context.Background()) {
@@ -129,7 +125,7 @@ func QueryCollection(conStr string, databaseName string, collectionName string, 
 			return
 		}
 		if err = client.Disconnect(context.Background()); err != nil {
-			log.Fatal(err)
+			println("Error while disconnect: %v", err)
 		}
 	}()
 
@@ -138,8 +134,7 @@ func QueryCollection(conStr string, databaseName string, collectionName string, 
 	cursor, err := collection.Find(context.Background(), bson.M{})
 
 	if err != nil {
-		log.Fatal(err)
-		return ret, err
+		panic(err)
 	}
 
 	i := 0
