@@ -37,15 +37,18 @@
         "{{ $prop.AttribName }}": { {{ if $prop.IsArray -}}
           "type": "array",
           "items": {
-            "x-bson-type": "{{ $prop.BsonType }}", {{ if $prop.IsComplex -}}
+            "x-bson-type": "{{ $prop.BsonType }}",{{ if $prop.IsComplex -}}
             "$ref": "#/definitions/{{ $prop.ValueType }}"
             {{- else -}}
             "type": "{{ $prop.ValueType }}"
             {{- end }}
           }
           {{- else }}
-          "$x-bson-type": "{{ $prop.BsonType }}",
-          {{ if $prop.IsComplex -}} "$ref": "#/definitions/{{ $prop.ValueType }}"
+          "$x-bson-type": "{{ $prop.BsonType }}", 
+          {{ if $prop.IsDictionary -}}
+          "x-dict": true, {{ end -}}
+          {{ if $prop.IsComplex -}}
+          "$ref": "#/definitions/{{ $prop.ValueType }}"
           {{- else -}} "type": "{{ $prop.ValueType }}"
           {{- end }}
           {{- end }}

@@ -17,6 +17,8 @@ var outputDir string
 
 var itemCount int32
 
+var dictKeys []string
+
 var schemaCmd = &cobra.Command{
 	Use:   "schema",
 	Short: "functions around the schemas",
@@ -43,6 +45,8 @@ func init() {
 	schemaCmd.Flags().StringVar(&outputDir, "output", "stdout", "stdout or the directory to write the created schema file, default is 'stdout'")
 
 	schemaCmd.Flags().Int32Var(&itemCount, "item_count", 100, "Number of collection entries used to build the schema")
+
+	schemaCmd.Flags().StringSliceVarP(&dictKeys, "dict_key", "m", []string{}, "Attribute name that contains a map, can be specified multiple times")
 }
 
 func printSchemaForOneCollection(dbName string, collName string, doRecover bool) {
@@ -61,7 +65,7 @@ func printSchemaForOneCollection(dbName string, collName string, doRecover bool)
 	var otherComplexTypes []mongoHelper.ComplexType
 	var mainType mongoHelper.ComplexType
 	for _, b := range bsonRaw {
-		err = mongoHelper.ProcessBson(b, collName, &mainType, &otherComplexTypes)
+		err = mongoHelper.ProcessBson(b, collName, &mainType, &otherComplexTypes, &dictKeys)
 		if err != nil {
 			fmt.Printf("Error while processing bson for schema: %v", err)
 		}
@@ -69,7 +73,7 @@ func printSchemaForOneCollection(dbName string, collName string, doRecover bool)
 	if len(bsonRaw) > 0 {
 		schema.PrintSchema(dbName, collName, &mainType, otherComplexTypes, outputDir)
 	} else {
-		println("No data for database: %s, collection: %s", dbName, collName)
+		fmt.Printf("No data for database: %s, collection: %s\n", dbName, collName)
 	}
 }
 
