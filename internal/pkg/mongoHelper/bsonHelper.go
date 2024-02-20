@@ -16,8 +16,13 @@ const OBJECT = "object"
 const INT = "integer"
 
 type ComplexType struct {
-	Name       string
-	Properties []BasicElemInfo
+	Name          string
+	LongName      string
+	Properties    []BasicElemInfo
+	IsDictionary  bool
+	DictValueType string
+	UsedKeys      []string
+	TypeReduced   bool
 }
 
 type BasicElemInfo struct {
@@ -29,6 +34,25 @@ type BasicElemInfo struct {
 	ArrayDimensions uint
 	Comment         string
 	IsComplex       bool
+}
+
+func getNewTypeName(name string, otherComplexTypes *[]ComplexType) string {
+	f := func(s string) bool {
+		for _, c := range *otherComplexTypes {
+			if c.Name == s {
+				return true
+			}
+		}
+		return false
+	}
+	baseName := firstUpperCase(name)
+	newName := baseName
+	index := 2
+	for f(newName) {
+		newName = fmt.Sprintf("%s%d", baseName, index)
+		index += 1
+	}
+	return newName
 }
 
 func firstUpperCase(s string) string {
@@ -45,7 +69,7 @@ func firstUpperCase(s string) string {
 
 func addNewOtherComplexType(otherComplexTypes *[]ComplexType, complexType ComplexType) {
 	for i, e := range *otherComplexTypes {
-		if e.Name == complexType.Name {
+		if e.LongName == complexType.LongName {
 			(*otherComplexTypes)[i] = complexType
 			return
 		}
@@ -65,7 +89,7 @@ func addNewProperty(properties *[]BasicElemInfo, prop BasicElemInfo) {
 
 func getAlreadyStoredType(otherComplexTypes *[]ComplexType, typeName string) (ComplexType, bool) {
 	for i, e := range *otherComplexTypes {
-		if e.Name == typeName {
+		if e.LongName == typeName {
 			return (*otherComplexTypes)[i], true
 		}
 	}
@@ -100,6 +124,7 @@ func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, oth
 	if mainType.Name == "" {
 		colNameFirstUpper := firstUpperCase(collectionName)
 		mainType.Name = colNameFirstUpper
+		mainType.LongName = colNameFirstUpper
 	}
 	for _, elem := range elements {
 		isAlreadyThere := hasAlreadyProperty(mainType, elem.Key())
@@ -114,10 +139,16 @@ func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, oth
 		case bson.TypeDouble:
 			handleTypeDouble(elem, &typeInfo)
 		case bson.TypeEmbeddedDocument:
-			newTypeName := firstUpperCase(collectionName) + firstUpperCase(elem.Key())
-			newSchemaType, newOne := getAlreadyStoredType(otherComplexTypes, newTypeName)
-			if !newOne {
+			newTypeLongName := firstUpperCase(collectionName) + firstUpperCase(elem.Key())
+			newSchemaType, existingOne := getAlreadyStoredType(otherComplexTypes, newTypeLongName)
+			var newTypeName string
+			if !existingOne {
 				newSchemaType = ComplexType{}
+				newSchemaType.LongName = newTypeLongName
+				newTypeName = getNewTypeName(elem.Key(), otherComplexTypes)
+				newSchemaType.Name = newTypeName
+			} else {
+				newTypeName = newSchemaType.Name
 			}
 			typeInfo.ValueType = newTypeName
 			handleTypeEmbeddedDocument(elem, &typeInfo, &newSchemaType, otherComplexTypes, newTypeName, true)
@@ -194,10 +225,18 @@ func handleTypeEmbeddedDocument(elem bson.RawElement, typeInfo *BasicElemInfo, s
 			case bson.TypeDouble:
 				handleTypeDouble(elem, &typeInfo)
 			case bson.TypeEmbeddedDocument:
-				newTypeName := schemaType.Name + firstUpperCase(elem.Key())
-				newSchemaType, newOne := getAlreadyStoredType(otherComplexTypes, newTypeName)
-				if !newOne {
+				var newTypeLongName, newTypeName string
+				newTypeLongName = schemaType.LongName + firstUpperCase(elem.Key())
+				newTypeName = getNewTypeName(elem.Key(), otherComplexTypes)
+
+				// newTypeLongName = schemaType.LongName + firstUpperCase(elem.Key())
+				// newTypeName = getNewTypeName(elem.Key(), otherComplexTypes)
+
+				newSchemaType, existingOne := getAlreadyStoredType(otherComplexTypes, newTypeLongName)
+				if !existingOne {
 					newSchemaType = ComplexType{}
+					newSchemaType.LongName = newTypeLongName
+					newSchemaType.Name = newTypeName
 				}
 				typeInfo.ValueType = newTypeName
 				handleTypeEmbeddedDocument(elem, &typeInfo, &newSchemaType, otherComplexTypes, schemaType.Name, true)
@@ -252,7 +291,8 @@ func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplex
 	typeInfo.ArrayDimensions++
 	typeInfo.BsonType = "couldn't be retrieved - no elems"
 	typeInfo.ValueType = OBJECT
-	newTypeName := prefix + firstUpperCase(elem.Key())
+	newTypeLongName := prefix + firstUpperCase(elem.Key())
+	newTypeName := getNewTypeName(elem.Key(), otherComplexTypes)
 
 	elements, err := arrayRaw.Elements()
 	if err != nil {
@@ -277,9 +317,11 @@ func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplex
 			case bson.TypeDouble:
 				handleTypeDouble(elem, typeInfo)
 			case bson.TypeEmbeddedDocument:
-				newSchemaType, newOne := getAlreadyStoredType(otherComplexTypes, newTypeName)
-				if !newOne {
+				newSchemaType, existingOne := getAlreadyStoredType(otherComplexTypes, newTypeLongName)
+				if !existingOne {
 					newSchemaType = ComplexType{}
+					newSchemaType.LongName = newTypeLongName
+					newSchemaType.Name = newTypeName
 				}
 				typeInfo.ValueType = newTypeName
 				handleTypeEmbeddedDocument(elem, typeInfo, &newSchemaType, otherComplexTypes, newTypeName, true)

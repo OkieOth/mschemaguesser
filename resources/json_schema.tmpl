@@ -31,6 +31,7 @@
     {{- range $index, $type := .OtherComplexTypes -}}
     "{{ $type.Name }}": {
       "type": "object",
+      "x-dict": {{ $type.IsDictionary }},
       "properties": {
         {{- $lastIndexProps := LastIndexProps $type.Properties -}}
         {{- range $index, $prop := $type.Properties }}
