@@ -6,6 +6,7 @@ import (
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
 	"os"
 	"text/template"
+	"unicode"
 )
 
 type TemplateInput struct {
@@ -31,7 +32,7 @@ func getComplexTypeByName(name string, otherComplexTypes *[]mongoHelper.ComplexT
 			return &complexType, nil
 		}
 	}
-	return nil, errors.New(fmt.Sprintf("can't find complex type with name", name))
+	return nil, errors.New(fmt.Sprintf("can't find complex type with name: %s", name))
 }
 
 func containsProp(propName string, t *mongoHelper.ComplexType) bool {
@@ -156,6 +157,48 @@ func replaceAllTypeReferences(typeNameToReplace string, typeNameReplacement stri
 	}
 }
 
+func removeUnneededTypes(typesToRemove *[]string, otherComplexTypes *[]mongoHelper.ComplexType) *[]mongoHelper.ComplexType {
+	var ret []mongoHelper.ComplexType
+	for _, t := range *otherComplexTypes {
+		if notInTypesToRemove(t.Name, typesToRemove) {
+			ret = append(ret, t)
+		}
+	}
+	return removeDigitsFromTypeNames(&ret)
+}
+
+func removeTrailingDigits(name string) string {
+	runes := []rune(name)
+	for i := len(runes) - 1; i >= 0; i-- {
+		if unicode.IsDigit(runes[i]) {
+			runes = runes[:i]
+		} else {
+			break
+		}
+	}
+	return string(runes)
+}
+
+func removeDigitsFromTypeNames(complexTypes *[]mongoHelper.ComplexType) *[]mongoHelper.ComplexType {
+	for i, t := range *complexTypes {
+		trimmedName := removeTrailingDigits(t.Name)
+		if trimmedName != t.Name {
+			for j, ct := range *complexTypes {
+				if ct.Name == t.Name {
+					continue
+				}
+				for k, p := range ct.Properties {
+					if p.ValueType == t.Name {
+						(*complexTypes)[j].Properties[k].ValueType = trimmedName
+					}
+				}
+			}
+			(*complexTypes)[i].Name = trimmedName
+		}
+	}
+	return complexTypes
+}
+
 func ReduceTypes(otherComplexTypes *[]mongoHelper.ComplexType) {
 	var typesToRemove []string
 	for i, e1 := range *otherComplexTypes {
@@ -173,13 +216,7 @@ func ReduceTypes(otherComplexTypes *[]mongoHelper.ComplexType) {
 			}
 		}
 	}
-	var ret []mongoHelper.ComplexType
-	for _, t := range *otherComplexTypes {
-		if notInTypesToRemove(t.Name, &typesToRemove) {
-			ret = append(ret, t)
-		}
-	}
-	*otherComplexTypes = ret
+	*otherComplexTypes = *removeUnneededTypes(&typesToRemove, otherComplexTypes)
 }
 
 func GuessDicts(otherComplexTypes *[]mongoHelper.ComplexType) {
