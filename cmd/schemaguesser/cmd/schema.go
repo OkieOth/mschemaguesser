@@ -66,7 +66,13 @@ func printSchemaForOneCollection(dbName string, collName string, doRecover bool)
 			fmt.Printf("Error while processing bson for schema: %v", err)
 		}
 	}
-	schema.PrintSchema(dbName, collName, &mainType, otherComplexTypes, outputDir)
+ 	if len(bsonRaw) > 0 {
+		schema.ReduceTypes(&mainType, &otherComplexTypes)
+		//schema.GuessDicts(&otherComplexTypes)
+		schema.PrintSchema(dbName, collName, &mainType, &otherComplexTypes, outputDir)
+	} else {
+		fmt.Printf("No data for database: %s, collection: %s\n", dbName, collName)
+	}
 }
 
 func printSchemasForAllCollections(dbName string) {
