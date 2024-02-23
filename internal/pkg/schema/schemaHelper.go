@@ -187,6 +187,9 @@ func removeTrailingDigits(name string) string {
 func removeDigitsFromTypeNames(mainType *mongoHelper.ComplexType, complexTypes *[]mongoHelper.ComplexType) *[]mongoHelper.ComplexType {
 	for i, t := range *complexTypes {
 		trimmedName := removeTrailingDigits(t.Name)
+		if trimmedName == "" {
+			trimmedName = mongoHelper.GetNewTypeName("Type", complexTypes)
+		}
 		if trimmedName != t.Name {
 			for j, ct := range *complexTypes {
 				if ct.Name == t.Name {

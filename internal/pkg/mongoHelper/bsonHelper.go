@@ -36,7 +36,7 @@ type BasicElemInfo struct {
 	IsComplex       bool
 }
 
-func getNewTypeName(name string, otherComplexTypes *[]ComplexType) string {
+func GetNewTypeName(name string, otherComplexTypes *[]ComplexType) string {
 	f := func(s string) bool {
 		for _, c := range *otherComplexTypes {
 			if c.Name == s {
@@ -145,7 +145,7 @@ func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, oth
 			if !existingOne {
 				newSchemaType = ComplexType{}
 				newSchemaType.LongName = newTypeLongName
-				newTypeName = getNewTypeName(elem.Key(), otherComplexTypes)
+				newTypeName = GetNewTypeName(elem.Key(), otherComplexTypes)
 				newSchemaType.Name = newTypeName
 			} else {
 				newTypeName = newSchemaType.Name
@@ -227,7 +227,7 @@ func handleTypeEmbeddedDocument(elem bson.RawElement, typeInfo *BasicElemInfo, s
 			case bson.TypeEmbeddedDocument:
 				var newTypeLongName, newTypeName string
 				newTypeLongName = schemaType.LongName + firstUpperCase(elem.Key())
-				newTypeName = getNewTypeName(elem.Key(), otherComplexTypes)
+				newTypeName = GetNewTypeName(elem.Key(), otherComplexTypes)
 
 				// newTypeLongName = schemaType.LongName + firstUpperCase(elem.Key())
 				// newTypeName = getNewTypeName(elem.Key(), otherComplexTypes)
@@ -292,7 +292,7 @@ func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplex
 	typeInfo.BsonType = "couldn't be retrieved - no elems"
 	typeInfo.ValueType = OBJECT
 	newTypeLongName := prefix + firstUpperCase(elem.Key())
-	newTypeName := getNewTypeName(elem.Key(), otherComplexTypes)
+	newTypeName := GetNewTypeName(elem.Key(), otherComplexTypes)
 
 	elements, err := arrayRaw.Elements()
 	if err != nil {
