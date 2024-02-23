@@ -15,7 +15,7 @@ jobs:
       - name: build image
         run: ./buildImage.sh
       - name: Login to GitHub Registry
-        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u okieoth --password-stdin
+        run: echo ${{ secrets.GH_PUBLISH_TOKEN }} | docker login ghcr.io -u okieoth --password-stdin
       - name: Push the Docker image
         run: docker push ghcr.io/okieoth/mschemaguesser:`cat version.txt | grep -P '\d+\.\d+\.\d+'`
       - name: Push the latest Docker image
@@ -24,7 +24,7 @@ jobs:
         id: create_release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_PUBLISH_TOKEN: ${{ secrets.GH_PUBLISH_TOKEN }}
         with:
           tag_name: ${{ github.ref }}
           release_name: ${{ github.ref }}
