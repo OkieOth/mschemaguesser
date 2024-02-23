@@ -147,7 +147,7 @@ func typesAreEqual(t1, t2 *mongoHelper.ComplexType, otherComplexTypes *[]mongoHe
 	return true
 }
 
-func replaceAllTypeReferences(typeNameToReplace string, typeNameReplacement string, otherComplexTypes *[]mongoHelper.ComplexType) {
+func replaceAllTypeReferences(typeNameToReplace string, typeNameReplacement string, otherComplexTypes *[]mongoHelper.ComplexType, mainType *mongoHelper.ComplexType) {
 	for i, t := range *otherComplexTypes {
 		for j, p := range t.Properties {
 			if p.ValueType == typeNameToReplace {
@@ -155,16 +155,21 @@ func replaceAllTypeReferences(typeNameToReplace string, typeNameReplacement stri
 			}
 		}
 	}
+	for j, p := range mainType.Properties {
+		if p.ValueType == typeNameToReplace {
+			mainType.Properties[j].ValueType = typeNameReplacement
+		}
+	}
 }
 
-func removeUnneededTypes(typesToRemove *[]string, otherComplexTypes *[]mongoHelper.ComplexType) *[]mongoHelper.ComplexType {
+func removeUnneededTypes(typesToRemove *[]string, otherComplexTypes *[]mongoHelper.ComplexType, mainType *mongoHelper.ComplexType) *[]mongoHelper.ComplexType {
 	var ret []mongoHelper.ComplexType
 	for _, t := range *otherComplexTypes {
 		if notInTypesToRemove(t.Name, typesToRemove) {
 			ret = append(ret, t)
 		}
 	}
-	return removeDigitsFromTypeNames(&ret)
+	return removeDigitsFromTypeNames(mainType, &ret)
 }
 
 func removeTrailingDigits(name string) string {
@@ -179,7 +184,7 @@ func removeTrailingDigits(name string) string {
 	return string(runes)
 }
 
-func removeDigitsFromTypeNames(complexTypes *[]mongoHelper.ComplexType) *[]mongoHelper.ComplexType {
+func removeDigitsFromTypeNames(mainType *mongoHelper.ComplexType, complexTypes *[]mongoHelper.ComplexType) *[]mongoHelper.ComplexType {
 	for i, t := range *complexTypes {
 		trimmedName := removeTrailingDigits(t.Name)
 		if trimmedName != t.Name {
@@ -193,13 +198,18 @@ func removeDigitsFromTypeNames(complexTypes *[]mongoHelper.ComplexType) *[]mongo
 					}
 				}
 			}
+			for k, p := range mainType.Properties {
+				if p.ValueType == t.Name {
+					mainType.Properties[k].ValueType = trimmedName
+				}
+			}
 			(*complexTypes)[i].Name = trimmedName
 		}
 	}
 	return complexTypes
 }
 
-func ReduceTypes(otherComplexTypes *[]mongoHelper.ComplexType) {
+func ReduceTypes(mainType *mongoHelper.ComplexType, otherComplexTypes *[]mongoHelper.ComplexType) {
 	var typesToRemove []string
 	for i, e1 := range *otherComplexTypes {
 		if e1.TypeReduced {
@@ -212,11 +222,11 @@ func ReduceTypes(otherComplexTypes *[]mongoHelper.ComplexType) {
 			if typesAreEqual(&e1, &e2, otherComplexTypes) {
 				typesToRemove = append(typesToRemove, e2.Name)
 				(*otherComplexTypes)[i+j+1].TypeReduced = true
-				replaceAllTypeReferences(e2.Name, e1.Name, otherComplexTypes)
+				replaceAllTypeReferences(e2.Name, e1.Name, otherComplexTypes, mainType)
 			}
 		}
 	}
-	*otherComplexTypes = *removeUnneededTypes(&typesToRemove, otherComplexTypes)
+	*otherComplexTypes = *removeUnneededTypes(&typesToRemove, otherComplexTypes, mainType)
 }
 
 func GuessDicts(otherComplexTypes *[]mongoHelper.ComplexType) {

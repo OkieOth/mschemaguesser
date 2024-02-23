@@ -66,8 +66,8 @@ func printSchemaForOneCollection(dbName string, collName string, doRecover bool)
 			fmt.Printf("Error while processing bson for schema: %v", err)
 		}
 	}
-	if len(bsonRaw) > 0 {
-		schema.ReduceTypes(&otherComplexTypes)
+ 	if len(bsonRaw) > 0 {
+		schema.ReduceTypes(&mainType, &otherComplexTypes)
 		//schema.GuessDicts(&otherComplexTypes)
 		schema.PrintSchema(dbName, collName, &mainType, &otherComplexTypes, outputDir)
 	} else {
