@@ -1,4 +1,6 @@
 [![ci](https://github.com/OkieOth/mschemaguesser/actions/workflows/test.yml/badge.svg)](https://github.com/OkieOth/mschemaguesser/actions/workflows/test.yml)
+[![GitHub release](https://img.shields.io/github/v/release/OkieOth/mschemaguesser?label=Docker%20Image&style=flat-square)](https://github.com/OkieOth/mschemaguesser/releases)
+
 
 # TL;DR;
 
