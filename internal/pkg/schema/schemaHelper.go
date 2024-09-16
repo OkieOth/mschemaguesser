@@ -9,6 +9,7 @@ import (
 	"unicode"
 )
 
+// TODO - This file should be persisted for the foreign key investigation
 type TemplateInput struct {
 	Database          string
 	Collection        string
