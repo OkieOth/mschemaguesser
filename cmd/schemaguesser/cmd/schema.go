@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"go.mongodb.org/mongo-driver/mongo"
+	"sync"
 
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
 	"okieoth/schemaguesser/internal/pkg/schema"
@@ -22,13 +24,20 @@ var schemaCmd = &cobra.Command{
 	Short: "functions around the schemas",
 	Long:  "With this command you can create schemas out of mongodb collection",
 	Run: func(cmd *cobra.Command, args []string) {
+		client, err := mongoHelper.Connect(mongoHelper.ConStr)
+		if err != nil {
+			msg := fmt.Sprintf("Failed to connect to db: %v", err)
+			panic(msg)
+		}
+		defer mongoHelper.CloseConnection(client)
+
 		if dbName == "all" {
-			printSchemasForAllDatabases()
+			printSchemasForAllDatabases(client)
 		} else {
 			if colName == "all" {
-				printSchemasForAllCollections(dbName)
+				printSchemasForAllCollections(client, dbName)
 			} else {
-				printSchemaForOneCollection(dbName, colName, false)
+				printSchemaForOneCollection(client, dbName, colName, false)
 			}
 		}
 
@@ -45,7 +54,7 @@ func init() {
 	schemaCmd.Flags().Int32Var(&itemCount, "item_count", 100, "Number of collection entries used to build the schema")
 }
 
-func printSchemaForOneCollection(dbName string, collName string, doRecover bool) {
+func printSchemaForOneCollection(client *mongo.Client, dbName string, collName string, doRecover bool) {
 	defer func() {
 		if doRecover {
 			if r := recover(); r != nil {
@@ -53,7 +62,7 @@ func printSchemaForOneCollection(dbName string, collName string, doRecover bool)
 			}
 		}
 	}()
-	bsonRaw, err := mongoHelper.QueryCollection(mongoHelper.ConStr, dbName, collName, int(itemCount))
+	bsonRaw, err := mongoHelper.QueryCollection(client, dbName, collName, int(itemCount))
 	if err != nil {
 		msg := fmt.Sprintf("Error while reading data for collection (%s.%s): \n%v\n", dbName, collName, err)
 		panic(msg)
@@ -66,7 +75,7 @@ func printSchemaForOneCollection(dbName string, collName string, doRecover bool)
 			fmt.Printf("Error while processing bson for schema: %v", err)
 		}
 	}
- 	if len(bsonRaw) > 0 {
+	if len(bsonRaw) > 0 {
 		schema.ReduceTypes(&mainType, &otherComplexTypes)
 		//schema.GuessDicts(&otherComplexTypes)
 		schema.PrintSchema(dbName, collName, &mainType, &otherComplexTypes, outputDir)
@@ -75,16 +84,28 @@ func printSchemaForOneCollection(dbName string, collName string, doRecover bool)
 	}
 }
 
-func printSchemasForAllCollections(dbName string) {
-	collections := mongoHelper.ReadCollectionsOrPanic(dbName)
+func printSchemasForAllCollections(client *mongo.Client, dbName string) {
+	collections := mongoHelper.ReadCollectionsOrPanic(client, dbName)
+	var wg sync.WaitGroup
 	for _, coll := range *collections {
-		printSchemaForOneCollection(dbName, coll, true)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			printSchemaForOneCollection(client, dbName, coll, true)
+		}()
 	}
+	wg.Wait()
 }
 
-func printSchemasForAllDatabases() {
-	dbs := mongoHelper.ReadDatabasesOrPanic()
+func printSchemasForAllDatabases(client *mongo.Client) {
+	dbs := mongoHelper.ReadDatabasesOrPanic(client)
+	var wg sync.WaitGroup
 	for _, db := range *dbs {
-		printSchemasForAllCollections(db)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			printSchemasForAllCollections(client, db)
+		}()
 	}
+	wg.Wait()
 }

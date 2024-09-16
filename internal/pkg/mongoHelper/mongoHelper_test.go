@@ -8,7 +8,14 @@ import (
 var conStr = "mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/admin"
 
 func TestListDbs_IT(t *testing.T) {
-	dbs, err := ListDatabases(conStr)
+	client, err := Connect(conStr)
+	defer CloseConnection(client)
+
+	if err != nil {
+		t.Errorf("Failed to get client: %v", err)
+		return
+	}
+	dbs, err := ListDatabases(client)
 
 	if err != nil {
 		t.Errorf("Failed to list databases: %v", err)

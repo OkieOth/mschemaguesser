@@ -21,25 +21,21 @@ func Connect(conStr string) (*mongo.Client, error) {
 	return mongo.Connect(context.Background(), options.Client().ApplyURI(conStr2Use))
 }
 
+func CloseConnection(client *mongo.Client) {
+	if client == nil {
+		return
+	}
+	if err := client.Disconnect(context.Background()); err != nil {
+		println("Error while disconnect: %v", err)
+	}
+}
+
 func Dummy() {
 	fmt.Println("'Dummy' is called")
 }
 
-func ListDatabases(conStr string) ([]string, error) {
+func ListDatabases(client *mongo.Client) ([]string, error) {
 	var ret []string
-	client, err := Connect(conStr)
-	if err != nil {
-		return ret, err
-	}
-
-	defer func() {
-		if client == nil {
-			return
-		}
-		if err = client.Disconnect(context.Background()); err != nil {
-			println("Error while disconnect: %v", err)
-		}
-	}()
 
 	cursor, err := client.ListDatabases(context.Background(), bson.M{})
 	if err != nil {
@@ -52,21 +48,8 @@ func ListDatabases(conStr string) ([]string, error) {
 	return ret, nil
 }
 
-func ListCollections(conStr string, databaseName string) ([]string, error) {
+func ListCollections(client *mongo.Client, databaseName string) ([]string, error) {
 	var ret []string
-	client, err := Connect(conStr)
-	if err != nil {
-		return ret, err
-	}
-
-	defer func() {
-		if client == nil {
-			return
-		}
-		if err = client.Disconnect(context.Background()); err != nil {
-			println("Error while disconnect: %v", err)
-		}
-	}()
 
 	db := client.Database(databaseName)
 	cursor, err := db.ListCollectionNames(context.Background(), bson.M{})
@@ -80,21 +63,8 @@ func ListCollections(conStr string, databaseName string) ([]string, error) {
 	return ret, nil
 }
 
-func ListIndexes(conStr string, databaseName string, collectionName string) ([]string, error) {
+func ListIndexes(client *mongo.Client, databaseName string, collectionName string) ([]string, error) {
 	var ret []string
-	client, err := Connect(conStr)
-	if err != nil {
-		return ret, err
-	}
-
-	defer func() {
-		if client == nil {
-			return
-		}
-		if err = client.Disconnect(context.Background()); err != nil {
-			println("Error while disconnect: %v", err)
-		}
-	}()
 
 	db := client.Database(databaseName)
 	collection := db.Collection(collectionName)
@@ -113,21 +83,8 @@ func ListIndexes(conStr string, databaseName string, collectionName string) ([]s
 	return ret, nil
 }
 
-func QueryCollection(conStr string, databaseName string, collectionName string, itemCount int) ([]bson.Raw, error) {
+func QueryCollection(client *mongo.Client, databaseName string, collectionName string, itemCount int) ([]bson.Raw, error) {
 	var ret []bson.Raw
-	client, err := Connect(conStr)
-	if err != nil {
-		return ret, err
-	}
-
-	defer func() {
-		if client == nil {
-			return
-		}
-		if err = client.Disconnect(context.Background()); err != nil {
-			println("Error while disconnect: %v", err)
-		}
-	}()
 
 	db := client.Database(databaseName)
 	collection := db.Collection(collectionName)
@@ -147,8 +104,8 @@ func QueryCollection(conStr string, databaseName string, collectionName string, 
 	return ret, nil
 }
 
-func ReadCollectionsOrPanic(dbName string) *[]string {
-	collections, err := ListCollections(ConStr, dbName)
+func ReadCollectionsOrPanic(client *mongo.Client, dbName string) *[]string {
+	collections, err := ListCollections(client, dbName)
 	if err != nil {
 		msg := fmt.Sprintf("Error while reading collections for database (%s): \n%v\n", dbName, err)
 		panic(msg)
@@ -156,8 +113,8 @@ func ReadCollectionsOrPanic(dbName string) *[]string {
 	return &collections
 }
 
-func ReadDatabasesOrPanic() *[]string {
-	dbs, err := ListDatabases(ConStr)
+func ReadDatabasesOrPanic(client *mongo.Client) *[]string {
+	dbs, err := ListDatabases(client)
 	if err != nil {
 		msg := fmt.Sprintf("Error while reading existing databases: \n%v\n", err)
 		panic(msg)

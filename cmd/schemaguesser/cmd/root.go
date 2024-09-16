@@ -20,6 +20,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(schemaCmd)
 	rootCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(versionCmd)
 
 	rootCmd.PersistentFlags().StringVar(&mongoHelper.ConStr, "con_str", "mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/admin", "Connection string to mongodb")
 }
