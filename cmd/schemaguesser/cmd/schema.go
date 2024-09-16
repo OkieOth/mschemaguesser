@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"go.mongodb.org/mongo-driver/mongo"
+	"sync"
 
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
 	"okieoth/schemaguesser/internal/pkg/schema"
@@ -85,14 +86,26 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 
 func printSchemasForAllCollections(client *mongo.Client, dbName string) {
 	collections := mongoHelper.ReadCollectionsOrPanic(client, dbName)
+	var wg sync.WaitGroup
 	for _, coll := range *collections {
-		printSchemaForOneCollection(client, dbName, coll, true)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			printSchemaForOneCollection(client, dbName, coll, true)
+		}()
 	}
+	wg.Wait()
 }
 
 func printSchemasForAllDatabases(client *mongo.Client) {
 	dbs := mongoHelper.ReadDatabasesOrPanic(client)
+	var wg sync.WaitGroup
 	for _, db := range *dbs {
-		printSchemasForAllCollections(client, db)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			printSchemasForAllCollections(client, db)
+		}()
 	}
+	wg.Wait()
 }
