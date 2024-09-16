@@ -4,7 +4,7 @@ scriptPos=${0%/*}
 
 
 imageBase=ghcr.io/okieoth/mschemaguesser
-imageTag=`cat $scriptPos/version.txt | grep -P '\d+\.\d+\.\d+'`
+imageTag=`cat $scriptPos/cmd/schemaguesser/cmd/version.go | grep "const Version =" | sed -e 's-.*= "--' -e 's-".*--'`
 
 imageName="$imageBase:$imageTag"
 
