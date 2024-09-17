@@ -19,6 +19,15 @@ var outputDir string
 
 var itemCount int32
 
+var plantUml bool
+var plantUmlDest string
+
+var raw bool
+var rawDest string
+
+var data bool
+var dataDest string
+
 var schemaCmd = &cobra.Command{
 	Use:   "schema",
 	Short: "functions around the schemas",
@@ -52,6 +61,18 @@ func init() {
 	schemaCmd.Flags().StringVar(&outputDir, "output", "stdout", "stdout or the directory to write the created schema file, default is 'stdout'")
 
 	schemaCmd.Flags().Int32Var(&itemCount, "item_count", 100, "Number of collection entries used to build the schema")
+
+	schemaCmd.Flags().BoolVar(&plantUml, "plantuml", false, "If this flag is set, are to the schema additional plant uml diagrams created")
+
+	schemaCmd.Flags().StringVar(&plantUmlDest, "pumldir", "", "This flag specifies the target directory for the PlantUml diagrams")
+
+	schemaCmd.Flags().BoolVar(&raw, "raw", false, "If this flag is set, the collected and aggregated schema data are persisted too")
+
+	schemaCmd.Flags().StringVar(&rawDest, "rawdir", "", "Destination directory for the raw schema data")
+
+	schemaCmd.Flags().BoolVar(&data, "data", false, "If this flag is set, the read mongo data are persisted too")
+
+	schemaCmd.Flags().StringVar(&dataDest, "datadir", "", "Destination directory for the read database content")
 }
 
 func printSchemaForOneCollection(client *mongo.Client, dbName string, collName string, doRecover bool) {
