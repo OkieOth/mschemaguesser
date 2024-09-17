@@ -89,10 +89,10 @@ func printSchemasForAllCollections(client *mongo.Client, dbName string) {
 	var wg sync.WaitGroup
 	for _, coll := range *collections {
 		wg.Add(1)
-		go func() {
+		go func(s string) {
 			defer wg.Done()
-			printSchemaForOneCollection(client, dbName, coll, true)
-		}()
+			printSchemaForOneCollection(client, dbName, s, true)
+		}(coll)
 	}
 	wg.Wait()
 }
@@ -102,10 +102,10 @@ func printSchemasForAllDatabases(client *mongo.Client) {
 	var wg sync.WaitGroup
 	for _, db := range *dbs {
 		wg.Add(1)
-		go func() {
+		go func(s string) {
 			defer wg.Done()
-			printSchemasForAllCollections(client, db)
-		}()
+			printSchemasForAllCollections(client, s)
+		}(db)
 	}
 	wg.Wait()
 }
