@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"fmt"
-	"go.mongodb.org/mongo-driver/mongo"
+	"os"
 	"sync"
+
+	"go.mongodb.org/mongo-driver/mongo"
 
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
 	"okieoth/schemaguesser/internal/pkg/schema"
@@ -22,10 +24,10 @@ var itemCount int32
 var plantUml bool
 var plantUmlDest string
 
-var raw bool
+var rawDump bool
 var rawDest string
 
-var data bool
+var dataDump bool
 var dataDest string
 
 var schemaCmd = &cobra.Command{
@@ -66,11 +68,11 @@ func init() {
 
 	schemaCmd.Flags().StringVar(&plantUmlDest, "pumldir", "", "This flag specifies the target directory for the PlantUml diagrams")
 
-	schemaCmd.Flags().BoolVar(&raw, "raw", false, "If this flag is set, the collected and aggregated schema data are persisted too")
+	schemaCmd.Flags().BoolVar(&rawDump, "rawdump", false, "If this flag is set, the collected and aggregated schema data are persisted too")
 
 	schemaCmd.Flags().StringVar(&rawDest, "rawdir", "", "Destination directory for the raw schema data")
 
-	schemaCmd.Flags().BoolVar(&data, "data", false, "If this flag is set, the read mongo data are persisted too")
+	schemaCmd.Flags().BoolVar(&dataDump, "datadump", false, "If this flag is set, the read mongo data are persisted too")
 
 	schemaCmd.Flags().StringVar(&dataDest, "datadir", "", "Destination directory for the read database content")
 }
@@ -90,15 +92,38 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 	}
 	var otherComplexTypes []mongoHelper.ComplexType
 	var mainType mongoHelper.ComplexType
+
+	var dataDumpFile *os.File
+	if dataDump {
+		dir := outputDir
+		if dataDest != "" {
+			dir = dataDest
+		}
+		dataDumpFile, err := os.Create(dir + string(os.PathSeparator) + fmt.Sprintf("%s_%s_raw.json", dbName, colName))
+		if err != nil {
+			panic(err)
+		}
+		defer dataDumpFile.Close()
+	}
+
 	for _, b := range bsonRaw {
 		err = mongoHelper.ProcessBson(b, collName, &mainType, &otherComplexTypes)
 		if err != nil {
 			fmt.Printf("Error while processing bson for schema: %v", err)
 		}
+		if dataDump {
+			err := schema.DumpCollectionData(b, dataDumpFile)
+			if err != nil {
+				fmt.Printf("Error while dumping collection data: %v", err)
+			}
+		}
 	}
 	if len(bsonRaw) > 0 {
 		schema.ReduceTypes(&mainType, &otherComplexTypes)
 		//schema.GuessDicts(&otherComplexTypes)
+		if rawDump {
+			// TODO: dump the mainType and complexTypes array
+		}
 		schema.PrintSchema(dbName, collName, &mainType, &otherComplexTypes, outputDir)
 	} else {
 		fmt.Printf("No data for database: %s, collection: %s\n", dbName, collName)
