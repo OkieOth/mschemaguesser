@@ -8,6 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
+	"okieoth/schemaguesser/internal/pkg/progressbar"
 	"okieoth/schemaguesser/internal/pkg/schema"
 
 	"github.com/spf13/cobra"
@@ -34,12 +35,12 @@ var schemaCmd = &cobra.Command{
 		defer mongoHelper.CloseConnection(client)
 
 		if dbName == "all" {
-			printSchemasForAllDatabases(client)
+			printSchemasForAllDatabases(client, true)
 		} else {
 			if colName == "all" {
-				printSchemasForAllCollections(client, dbName)
+				printSchemasForAllCollections(client, dbName, true)
 			} else {
-				printSchemaForOneCollection(client, dbName, colName, false)
+				printSchemaForOneCollection(client, dbName, colName, false, true)
 			}
 		}
 
@@ -56,7 +57,7 @@ func init() {
 	schemaCmd.Flags().Int32Var(&itemCount, "item_count", 100, "Number of collection entries used to build the schema")
 }
 
-func printSchemaForOneCollection(client *mongo.Client, dbName string, collName string, doRecover bool) {
+func printSchemaForOneCollection(client *mongo.Client, dbName string, collName string, doRecover bool, initProgressBar bool) {
 	defer func() {
 		if doRecover {
 			if r := recover(); r != nil {
@@ -64,6 +65,9 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 			}
 		}
 	}()
+	if initProgressBar {
+		progressbar.Init(1, "Schema for one collection")
+	}
 	bsonRaw, err := mongoHelper.QueryCollectionWithAggregation(client, dbName, collName, int(itemCount))
 	if err != nil {
 		msg := fmt.Sprintf("Error while reading data for collection (%s.%s): \n%v\n", dbName, collName, err)
@@ -84,29 +88,49 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 	} else {
 		log.Printf("No data for database: %s, collection: %s\n", dbName, collName)
 	}
+	if initProgressBar {
+		progressbar.ProgressOne()
+	}
 }
 
-func printSchemasForAllCollections(client *mongo.Client, dbName string) {
+func printSchemasForAllCollections(client *mongo.Client, dbName string, initProgressBar bool) {
 	collections := mongoHelper.ReadCollectionsOrPanic(client, dbName)
 	var wg sync.WaitGroup
+	if initProgressBar {
+		progressbar.Init(int64(len(*collections)), "Schema for all collections")
+	}
+
 	for _, coll := range *collections {
 		wg.Add(1)
 		go func(s string) {
-			defer wg.Done()
-			printSchemaForOneCollection(client, dbName, s, true)
+			defer func() {
+				wg.Done()
+				if initProgressBar {
+					progressbar.ProgressOne()
+				}
+			}()
+			printSchemaForOneCollection(client, dbName, s, true, false)
 		}(coll)
 	}
 	wg.Wait()
 }
 
-func printSchemasForAllDatabases(client *mongo.Client) {
+func printSchemasForAllDatabases(client *mongo.Client, initProgressBar bool) {
 	dbs := mongoHelper.ReadDatabasesOrPanic(client)
 	var wg sync.WaitGroup
+	if initProgressBar {
+		progressbar.Init(int64(len(*dbs)), "Schema for all databases")
+	}
 	for _, db := range *dbs {
 		wg.Add(1)
 		go func(s string) {
-			defer wg.Done()
-			printSchemasForAllCollections(client, s)
+			defer func() {
+				wg.Done()
+				if initProgressBar {
+					progressbar.ProgressOne()
+				}
+			}()
+			printSchemasForAllCollections(client, s, false)
 		}(db)
 	}
 	wg.Wait()
