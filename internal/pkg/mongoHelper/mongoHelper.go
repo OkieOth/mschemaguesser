@@ -88,10 +88,11 @@ func QueryCollection(client *mongo.Client, databaseName string, collectionName s
 
 	db := client.Database(databaseName)
 	collection := db.Collection(collectionName)
-	cursor, err := collection.Find(context.Background(), bson.M{})
+	cursor, err := collection.Find(context.Background(), bson.M{}, options.Find().SetLimit(int64(itemCount)))
 
 	if err != nil {
-		panic(err)
+		//panic(err)
+		return ret, err
 	}
 
 	i := 0
