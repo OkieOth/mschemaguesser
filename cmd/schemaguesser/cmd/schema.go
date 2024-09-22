@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"sync"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -59,7 +60,7 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 	defer func() {
 		if doRecover {
 			if r := recover(); r != nil {
-				fmt.Printf("Recovered while handling collection (db: %s, collection: %s): %v", dbName, collName, r)
+				log.Printf("Recovered while handling collection (db: %s, collection: %s): %v", dbName, collName, r)
 			}
 		}
 	}()
@@ -73,7 +74,7 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 	for _, b := range bsonRaw {
 		err = mongoHelper.ProcessBson(b, collName, &mainType, &otherComplexTypes)
 		if err != nil {
-			fmt.Printf("Error while processing bson for schema: %v", err)
+			log.Printf("Error while processing bson for schema: %v", err)
 		}
 	}
 	if len(bsonRaw) > 0 {
@@ -81,7 +82,7 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 		//schema.GuessDicts(&otherComplexTypes)
 		schema.PrintSchema(dbName, collName, &mainType, &otherComplexTypes, outputDir)
 	} else {
-		fmt.Printf("No data for database: %s, collection: %s\n", dbName, collName)
+		log.Printf("No data for database: %s, collection: %s\n", dbName, collName)
 	}
 }
 

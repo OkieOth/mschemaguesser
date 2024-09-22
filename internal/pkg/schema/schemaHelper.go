@@ -3,6 +3,7 @@ package schema
 import (
 	"errors"
 	"fmt"
+	"log"
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
 	"os"
 	"text/template"
@@ -75,7 +76,7 @@ func checkForSameTypesOfAllProps(complexType mongoHelper.ComplexType, otherCompl
 			if p.IsComplex {
 				lastTypeInst, err = getComplexTypeByName(lastType, otherComplexTypes)
 				if err != nil {
-					fmt.Printf("Error while try to resolve name (%s) to complex type: %v\n", lastType, err)
+					log.Printf("Error while try to resolve name (%s) to complex type: %v\n", lastType, err)
 					return false
 				}
 			}
@@ -110,7 +111,7 @@ func containsPropWithSameType(propToFind *mongoHelper.BasicElemInfo, t *mongoHel
 	if propToFind.IsComplex {
 		c1, err = getComplexTypeByName(propToFind.ValueType, otherComplexTypes)
 		if err != nil {
-			fmt.Printf("containsPropWithSameType: error while resolve complex type (1): %v", err)
+			log.Printf("containsPropWithSameType: error while resolve complex type (1): %v", err)
 			return false
 		}
 	}
@@ -119,7 +120,7 @@ func containsPropWithSameType(propToFind *mongoHelper.BasicElemInfo, t *mongoHel
 			if propToFind.IsComplex {
 				c2, err := getComplexTypeByName(p.ValueType, otherComplexTypes)
 				if err != nil {
-					fmt.Printf("containsPropWithSameType: error while resolve complex type (2): %v", err)
+					log.Printf("containsPropWithSameType: error while resolve complex type (2): %v", err)
 					return false
 				}
 				if !typesAreEqual(c1, c2, otherComplexTypes) {
