@@ -83,12 +83,43 @@ func ListIndexes(client *mongo.Client, databaseName string, collectionName strin
 	return ret, nil
 }
 
+func QueryCollectionWithAggregation(client *mongo.Client, databaseName string, collectionName string, itemCount int) ([]bson.Raw, error) {
+	var ret []bson.Raw
+
+	db := client.Database(databaseName)
+	collection := db.Collection(collectionName)
+
+	// Define a simple aggregation pipeline that acts like a find
+	pipeline := mongo.Pipeline{
+		{{"$match", bson.M{}}}, // Add any match conditions if needed
+		{{"$limit", itemCount}},
+	}
+
+	// Set allowDiskUse to true in aggregation options
+	aggregationOptions := options.Aggregate().SetAllowDiskUse(true)
+
+	cursor, err := collection.Aggregate(context.Background(), pipeline, aggregationOptions)
+	if err != nil {
+		return ret, err
+	}
+
+	for cursor.Next(context.Background()) {
+		bsonRaw := cursor.Current
+		ret = append(ret, bsonRaw)
+	}
+
+	return ret, nil
+}
+
+// This version only works from mongodb v4.4
 func QueryCollection(client *mongo.Client, databaseName string, collectionName string, itemCount int) ([]bson.Raw, error) {
 	var ret []bson.Raw
 
 	db := client.Database(databaseName)
 	collection := db.Collection(collectionName)
-	cursor, err := collection.Find(context.Background(), bson.M{}, options.Find().SetLimit(int64(itemCount)))
+	// setAllowDiskUse requires mongodb 4.4 at minimum
+	findOptions := options.Find().SetLimit(int64(itemCount)).SetAllowDiskUse(true)
+	cursor, err := collection.Find(context.Background(), bson.M{}, findOptions)
 
 	if err != nil {
 		//panic(err)

@@ -2,8 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"go.mongodb.org/mongo-driver/mongo"
 	"sync"
+
+	"go.mongodb.org/mongo-driver/mongo"
 
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
 	"okieoth/schemaguesser/internal/pkg/schema"
@@ -62,7 +63,7 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 			}
 		}
 	}()
-	bsonRaw, err := mongoHelper.QueryCollection(client, dbName, collName, int(itemCount))
+	bsonRaw, err := mongoHelper.QueryCollectionWithAggregation(client, dbName, collName, int(itemCount))
 	if err != nil {
 		msg := fmt.Sprintf("Error while reading data for collection (%s.%s): \n%v\n", dbName, collName, err)
 		panic(msg)
