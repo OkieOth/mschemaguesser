@@ -9,10 +9,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var databaseName string
-
-var collectionName string
-
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Discovery the database you are connected to",
@@ -54,10 +50,10 @@ var collectionsCmd = &cobra.Command{
 		}
 		defer mongoHelper.CloseConnection(client)
 
-		if databaseName == "all" {
+		if dbName == "all" {
 			printAllCollections(client)
 		} else {
-			printOneCollection(client, databaseName, false)
+			printOneCollection(client, dbName, false)
 		}
 	},
 }
@@ -74,13 +70,13 @@ var indexesCmd = &cobra.Command{
 		}
 		defer mongoHelper.CloseConnection(client)
 
-		if databaseName == "all" {
+		if dbName == "all" {
 			printIndexesForAllDatabases(client)
 		} else {
-			if collectionName == "all" {
-				printIndexesForAllCollections(client, databaseName)
+			if colName == "all" {
+				printIndexesForAllCollections(client, dbName)
 			} else {
-				printIndexesForOneCollection(client, databaseName, collectionName, false)
+				printIndexesForOneCollection(client, dbName, colName, false)
 			}
 		}
 	},
@@ -91,10 +87,10 @@ func init() {
 	listCmd.AddCommand(collectionsCmd)
 	listCmd.AddCommand(indexesCmd)
 
-	collectionsCmd.Flags().StringVar(&databaseName, "database", "all", "Database to query existing collections. If 'all', then the collections of all databases are printed.")
+	collectionsCmd.Flags().StringVar(&dbName, "database", "all", "Database to query existing collections. If 'all', then the collections of all databases are printed.")
 
-	indexesCmd.Flags().StringVar(&databaseName, "database", "all", "Database to query existing collections. If 'all', then the collections of all databases are printed.")
-	indexesCmd.Flags().StringVar(&collectionName, "collection", "all", "Name of the collection to show the indexes.  If 'all', then the collections of all databases are printed.")
+	indexesCmd.Flags().StringVar(&dbName, "database", "all", "Database to query existing collections. If 'all', then the collections of all databases are printed.")
+	indexesCmd.Flags().StringVar(&colName, "collection", "all", "Name of the collection to show the indexes.  If 'all', then the collections of all databases are printed.")
 }
 
 func printOneCollection(client *mongo.Client, dbName string, verbose bool) {

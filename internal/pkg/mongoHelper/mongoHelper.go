@@ -3,7 +3,9 @@ package mongoHelper
 import (
 	"context"
 	"fmt"
+	"log"
 	"okieoth/schemaguesser/internal/pkg/utils"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -98,7 +100,9 @@ func QueryCollectionWithAggregation(client *mongo.Client, databaseName string, c
 	// Set allowDiskUse to true in aggregation options
 	aggregationOptions := options.Aggregate().SetAllowDiskUse(true)
 
+	startTime := time.Now()
 	cursor, err := collection.Aggregate(context.Background(), pipeline, aggregationOptions)
+	log.Printf("[%s:%s] Collection query executed in %v\n", databaseName, collectionName, time.Since(startTime))
 	if err != nil {
 		return ret, err
 	}
@@ -118,9 +122,11 @@ func QueryCollection(client *mongo.Client, databaseName string, collectionName s
 	db := client.Database(databaseName)
 	collection := db.Collection(collectionName)
 	// setAllowDiskUse requires mongodb 4.4 at minimum
+	startTime := time.Now()
+
 	findOptions := options.Find().SetLimit(int64(itemCount)).SetAllowDiskUse(true)
 	cursor, err := collection.Find(context.Background(), bson.M{}, findOptions)
-
+	log.Printf("Query executed in %v\n", time.Since(startTime))
 	if err != nil {
 		//panic(err)
 		return ret, err

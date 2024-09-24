@@ -3,7 +3,9 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"slices"
 	"sync"
+	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 
@@ -13,14 +15,6 @@ import (
 
 	"github.com/spf13/cobra"
 )
-
-var dbName string
-
-var colName string
-
-var outputDir string
-
-var itemCount int32
 
 var schemaCmd = &cobra.Command{
 	Use:   "schema",
@@ -47,16 +41,6 @@ var schemaCmd = &cobra.Command{
 	},
 }
 
-func init() {
-	schemaCmd.Flags().StringVar(&dbName, "database", "all", "Database to query existing collections")
-
-	schemaCmd.Flags().StringVar(&colName, "collection", "all", "Name of the collection to show the indexes")
-
-	schemaCmd.Flags().StringVar(&outputDir, "output", "stdout", "stdout or the directory to write the created schema file, default is 'stdout'")
-
-	schemaCmd.Flags().Int32Var(&itemCount, "item_count", 100, "Number of collection entries used to build the schema")
-}
-
 func printSchemaForOneCollection(client *mongo.Client, dbName string, collName string, doRecover bool, initProgressBar bool) {
 	defer func() {
 		if doRecover {
@@ -66,7 +50,8 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 		}
 	}()
 	if initProgressBar {
-		progressbar.Init(1, "Schema for one collection")
+		descr := fmt.Sprintf("Schema for %s:%s", dbName, colName)
+		progressbar.Init(1, descr)
 	}
 	bsonRaw, err := mongoHelper.QueryCollectionWithAggregation(client, dbName, collName, int(itemCount))
 	if err != nil {
@@ -75,16 +60,19 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 	}
 	var otherComplexTypes []mongoHelper.ComplexType
 	var mainType mongoHelper.ComplexType
+	startTime := time.Now()
 	for _, b := range bsonRaw {
 		err = mongoHelper.ProcessBson(b, collName, &mainType, &otherComplexTypes)
 		if err != nil {
 			log.Printf("Error while processing bson for schema: %v", err)
 		}
 	}
+	log.Printf("[%s:%s] Mongodb data processed for collection in %v\n", dbName, colName, time.Since(startTime))
 	if len(bsonRaw) > 0 {
 		schema.ReduceTypes(&mainType, &otherComplexTypes)
 		//schema.GuessDicts(&otherComplexTypes)
 		schema.PrintSchema(dbName, collName, &mainType, &otherComplexTypes, outputDir)
+		log.Printf("[%s:%s] Schema printed in %v\n", dbName, colName, time.Since(startTime))
 	} else {
 		log.Printf("No data for database: %s, collection: %s\n", dbName, collName)
 	}
@@ -102,8 +90,14 @@ func printSchemasForAllCollections(client *mongo.Client, dbName string, initProg
 
 	for _, coll := range *collections {
 		wg.Add(1)
+		if slices.Contains(blacklist, coll) {
+			log.Printf("[%s:%s] skip blacklisted collection\n", dbName, coll)
+			continue
+		}
 		go func(s string) {
+			startTime := time.Now()
 			defer func() {
+				log.Printf("[%s:%s] Schema created for collection in %v\n", dbName, s, time.Since(startTime))
 				wg.Done()
 				if initProgressBar {
 					progressbar.ProgressOne()
@@ -123,8 +117,14 @@ func printSchemasForAllDatabases(client *mongo.Client, initProgressBar bool) {
 	}
 	for _, db := range *dbs {
 		wg.Add(1)
+		if slices.Contains(blacklist, db) {
+			log.Printf("[%s] skip blacklisted DB\n", db)
+			continue
+		}
 		go func(s string) {
+			startTime := time.Now()
 			defer func() {
+				log.Printf("[%s] Schemas created for DB in %v\n", s, time.Since(startTime))
 				wg.Done()
 				if initProgressBar {
 					progressbar.ProgressOne()

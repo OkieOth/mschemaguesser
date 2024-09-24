@@ -25,5 +25,7 @@ tmp.*
 test.*
 tmp
 mschemaguesser
-
+schemaguesser
+*.log
+log.txt
 set_debug_env.sh
