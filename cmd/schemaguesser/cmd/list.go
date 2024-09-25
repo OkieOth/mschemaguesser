@@ -50,10 +50,10 @@ var collectionsCmd = &cobra.Command{
 		}
 		defer mongoHelper.CloseConnection(client)
 
-		if dbName == "all" {
+		if databaseName == "all" {
 			printAllCollections(client)
 		} else {
-			printOneCollection(client, dbName, false)
+			printOneCollection(client, databaseName, false)
 		}
 	},
 }
@@ -70,13 +70,13 @@ var indexesCmd = &cobra.Command{
 		}
 		defer mongoHelper.CloseConnection(client)
 
-		if dbName == "all" {
+		if databaseName == "all" {
 			printIndexesForAllDatabases(client)
 		} else {
-			if colName == "all" {
-				printIndexesForAllCollections(client, dbName)
+			if collectionName == "all" {
+				printIndexesForAllCollections(client, databaseName)
 			} else {
-				printIndexesForOneCollection(client, dbName, colName, false)
+				printIndexesForOneCollection(client, databaseName, collectionName, false)
 			}
 		}
 	},
@@ -87,10 +87,10 @@ func init() {
 	listCmd.AddCommand(collectionsCmd)
 	listCmd.AddCommand(indexesCmd)
 
-	collectionsCmd.Flags().StringVar(&dbName, "database", "all", "Database to query existing collections. If 'all', then the collections of all databases are printed.")
+	collectionsCmd.Flags().StringVar(&databaseName, "database", "all", "Database to query existing collections. If 'all', then the collections of all databases are printed.")
 
-	indexesCmd.Flags().StringVar(&dbName, "database", "all", "Database to query existing collections. If 'all', then the collections of all databases are printed.")
-	indexesCmd.Flags().StringVar(&colName, "collection", "all", "Name of the collection to show the indexes.  If 'all', then the collections of all databases are printed.")
+	indexesCmd.Flags().StringVar(&databaseName, "database", "all", "Database to query existing collections. If 'all', then the collections of all databases are printed.")
+	indexesCmd.Flags().StringVar(&collectionName, "collection", "all", "Name of the collection to show the indexes.  If 'all', then the collections of all databases are printed.")
 }
 
 func printOneCollection(client *mongo.Client, dbName string, verbose bool) {

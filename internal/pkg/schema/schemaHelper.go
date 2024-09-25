@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
+	"okieoth/schemaguesser/internal/pkg/utils"
 	"os"
 	"text/template"
 	"unicode"
@@ -280,7 +281,7 @@ func PrintSchema(database string, collection string, mainType *mongoHelper.Compl
 			panic(err)
 		}
 	} else {
-		outputFile, err := os.Create(outputDir + string(os.PathSeparator) + fmt.Sprintf("%s_%s.json", database, collection))
+		outputFile, err := utils.CreateOutputFile(outputDir, "json", database, collection)
 		if err != nil {
 			panic(err)
 		}

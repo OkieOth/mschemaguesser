@@ -85,7 +85,7 @@ func ListIndexes(client *mongo.Client, databaseName string, collectionName strin
 	return ret, nil
 }
 
-func QueryCollectionWithAggregation(client *mongo.Client, databaseName string, collectionName string, itemCount int) ([]bson.Raw, error) {
+func queryCollectionWithAggregation(client *mongo.Client, databaseName string, collectionName string, itemCount int) ([]bson.Raw, error) {
 	var ret []bson.Raw
 
 	db := client.Database(databaseName)
@@ -115,8 +115,7 @@ func QueryCollectionWithAggregation(client *mongo.Client, databaseName string, c
 	return ret, nil
 }
 
-// This version only works from mongodb v4.4
-func QueryCollection(client *mongo.Client, databaseName string, collectionName string, itemCount int) ([]bson.Raw, error) {
+func queryCollection(client *mongo.Client, databaseName string, collectionName string, itemCount int, mongo44 bool) ([]bson.Raw, error) {
 	var ret []bson.Raw
 
 	db := client.Database(databaseName)
@@ -124,7 +123,10 @@ func QueryCollection(client *mongo.Client, databaseName string, collectionName s
 	// setAllowDiskUse requires mongodb 4.4 at minimum
 	startTime := time.Now()
 
-	findOptions := options.Find().SetLimit(int64(itemCount)).SetAllowDiskUse(true)
+	findOptions := options.Find().SetLimit(int64(itemCount))
+	if mongo44 {
+		findOptions = findOptions.SetAllowDiskUse(true)
+	}
 	cursor, err := collection.Find(context.Background(), bson.M{}, findOptions)
 	log.Printf("Query executed in %v\n", time.Since(startTime))
 	if err != nil {
@@ -140,6 +142,15 @@ func QueryCollection(client *mongo.Client, databaseName string, collectionName s
 	}
 
 	return ret, nil
+}
+
+// This version only works from mongodb v4.4
+func QueryCollection(client *mongo.Client, databaseName string, collectionName string, itemCount int, useAggregation bool, mongo44 bool) ([]bson.Raw, error) {
+	if useAggregation {
+		return queryCollectionWithAggregation(client, databaseName, collectionName, itemCount)
+	} else {
+		return queryCollection(client, databaseName, collectionName, itemCount, mongo44)
+	}
 }
 
 func ReadCollectionsOrPanic(client *mongo.Client, dbName string) *[]string {

@@ -11,15 +11,16 @@ import (
 
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
 	"okieoth/schemaguesser/internal/pkg/progressbar"
-	"okieoth/schemaguesser/internal/pkg/schema"
+
+	"okieoth/schemaguesser/internal/pkg/utils"
 
 	"github.com/spf13/cobra"
 )
 
-var schemaCmd = &cobra.Command{
-	Use:   "schema",
-	Short: "functions around the schemas",
-	Long:  "With this command you can create schemas out of mongodb collection",
+var bsonCmd = &cobra.Command{
+	Use:   "bson",
+	Short: "dump raw bson content",
+	Long:  "With this command you can dump raw content of one or more mongodb collections",
 	Run: func(cmd *cobra.Command, args []string) {
 		client, err := mongoHelper.Connect(mongoHelper.ConStr)
 		if err != nil {
@@ -29,19 +30,19 @@ var schemaCmd = &cobra.Command{
 		defer mongoHelper.CloseConnection(client)
 
 		if databaseName == "all" {
-			printSchemasForAllDatabases(client, true)
+			bsonForAllDatabases(client, true)
 		} else {
 			if collectionName == "all" {
-				printSchemasForAllCollections(client, databaseName, true)
+				bsonForAllCollections(client, databaseName, true)
 			} else {
-				printSchemaForOneCollection(client, databaseName, collectionName, false, true)
+				bsonForOneCollection(client, databaseName, collectionName, false, true)
 			}
 		}
 
 	},
 }
 
-func printSchemaForOneCollection(client *mongo.Client, dbName string, collName string, doRecover bool, initProgressBar bool) {
+func bsonForOneCollection(client *mongo.Client, dbName string, collName string, doRecover bool, initProgressBar bool) {
 	defer func() {
 		if doRecover {
 			if r := recover(); r != nil {
@@ -50,42 +51,38 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 		}
 	}()
 	if initProgressBar {
-		descr := fmt.Sprintf("Schema for %s:%s", dbName, collName)
+		descr := fmt.Sprintf("BSON export of %s:%s", dbName, collName)
 		progressbar.Init(1, descr)
 	}
+	//bsonRaw, err := mongoHelper.QueryCollectionWithAggregation(client, dbName, collName, int(itemCount))
 	bsonRaw, err := mongoHelper.QueryCollection(client, dbName, collName, int(itemCount), useAggregation, mongoV44)
+
 	if err != nil {
 		msg := fmt.Sprintf("Error while reading data for collection (%s.%s): \n%v\n", dbName, collName, err)
 		panic(msg)
 	}
-	var otherComplexTypes []mongoHelper.ComplexType
-	var mainType mongoHelper.ComplexType
+	outputFile, err := utils.CreateOutputFile(outputDir, "bson", dbName, collName)
+	if err != nil {
+		panic(err)
+	}
+	defer outputFile.Close()
+
 	startTime := time.Now()
 	for _, b := range bsonRaw {
-		err = mongoHelper.ProcessBson(b, collName, &mainType, &otherComplexTypes)
-		if err != nil {
-			log.Printf("Error while processing bson for schema: %v", err)
-		}
+		utils.DumpBsonCollectionData(b, outputFile)
+		utils.DumpBsonCollectionData([]byte("\n"), outputFile)
 	}
-	log.Printf("[%s:%s] Mongodb data processed for collection in %v\n", dbName, collName, time.Since(startTime))
-	if len(bsonRaw) > 0 {
-		schema.ReduceTypes(&mainType, &otherComplexTypes)
-		//schema.GuessDicts(&otherComplexTypes)
-		schema.PrintSchema(dbName, collName, &mainType, &otherComplexTypes, outputDir)
-		log.Printf("[%s:%s] Schema printed in %v\n", dbName, collName, time.Since(startTime))
-	} else {
-		log.Printf("No data for database: %s, collection: %s\n", dbName, collName)
-	}
+	log.Printf("[%s:%s] BSON exported for collection in %v\n", dbName, collName, time.Since(startTime))
 	if initProgressBar {
 		progressbar.ProgressOne()
 	}
 }
 
-func printSchemasForAllCollections(client *mongo.Client, dbName string, initProgressBar bool) {
+func bsonForAllCollections(client *mongo.Client, dbName string, initProgressBar bool) {
 	collections := mongoHelper.ReadCollectionsOrPanic(client, dbName)
 	var wg sync.WaitGroup
 	if initProgressBar {
-		progressbar.Init(int64(len(*collections)), "Schema for all collections")
+		progressbar.Init(int64(len(*collections)), "BSON export for all collections")
 	}
 
 	for _, coll := range *collections {
@@ -97,23 +94,23 @@ func printSchemasForAllCollections(client *mongo.Client, dbName string, initProg
 		go func(s string) {
 			startTime := time.Now()
 			defer func() {
-				log.Printf("[%s:%s] Schema created for collection in %v\n", dbName, s, time.Since(startTime))
+				log.Printf("[%s:%s] BSON export of collection in %v\n", dbName, s, time.Since(startTime))
 				wg.Done()
 				if initProgressBar {
 					progressbar.ProgressOne()
 				}
 			}()
-			printSchemaForOneCollection(client, dbName, s, true, false)
+			bsonForOneCollection(client, dbName, s, true, false)
 		}(coll)
 	}
 	wg.Wait()
 }
 
-func printSchemasForAllDatabases(client *mongo.Client, initProgressBar bool) {
+func bsonForAllDatabases(client *mongo.Client, initProgressBar bool) {
 	dbs := mongoHelper.ReadDatabasesOrPanic(client)
 	var wg sync.WaitGroup
 	if initProgressBar {
-		progressbar.Init(int64(len(*dbs)), "Schema for all databases")
+		progressbar.Init(int64(len(*dbs)), "BSON export for all databases")
 	}
 	for _, db := range *dbs {
 		if slices.Contains(blacklist, db) {
@@ -124,13 +121,13 @@ func printSchemasForAllDatabases(client *mongo.Client, initProgressBar bool) {
 		go func(s string) {
 			startTime := time.Now()
 			defer func() {
-				log.Printf("[%s] Schemas created for DB in %v\n", s, time.Since(startTime))
+				log.Printf("[%s] BSON exported from DB in %v\n", s, time.Since(startTime))
 				wg.Done()
 				if initProgressBar {
 					progressbar.ProgressOne()
 				}
 			}()
-			printSchemasForAllCollections(client, s, false)
+			bsonForAllCollections(client, s, false)
 		}(db)
 	}
 	wg.Wait()
