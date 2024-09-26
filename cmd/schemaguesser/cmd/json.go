@@ -1,13 +1,18 @@
 package cmd
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"regexp"
 	"slices"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -45,6 +50,34 @@ var jsonCmd = &cobra.Command{
 	},
 }
 
+func replaceUuidValues(version byte, jsonStr string) (string, error) {
+	re := regexp.MustCompile(fmt.Sprintf(`"Subtype":\s*%d,\s*"Data":"([A-Za-z0-9+/=]+)"`, version))
+
+	matches := re.FindAllStringSubmatch(jsonStr, -1)
+
+	ret := jsonStr
+
+	for _, match := range matches {
+		if len(match) > 1 {
+			base64Str := match[1]
+			decoded, err := base64.StdEncoding.DecodeString(base64Str)
+			if err != nil {
+				log.Fatalf("Error decoding Base64 data: %v", err)
+				return "", err
+			}
+			if len(decoded) == 16 { // UUIDs are 16 bytes long
+				uuidVal, err := uuid.FromBytes(decoded)
+				if err == nil {
+					origStr := fmt.Sprintf(`{%s}`, match[0])
+					newStr := fmt.Sprintf(`"%s"`, &uuidVal)
+					ret = strings.ReplaceAll(ret, origStr, newStr)
+				}
+			}
+		}
+	}
+	return ret, nil
+}
+
 func getJsonBytes(b *bson.Raw) ([]byte, error) {
 	var doc bson.M
 	err := bson.Unmarshal(*b, &doc)
@@ -55,12 +88,25 @@ func getJsonBytes(b *bson.Raw) ([]byte, error) {
 
 	// Convert BSON document to JSON
 	jsonData, err := json.Marshal(doc)
+
 	if err != nil {
 		log.Printf("Error while marshalling to JSON: %v", err)
 		return make([]byte, 0), errors.Join(err)
 	}
 
-	return jsonData, nil
+	jsonStr := string(jsonData)
+	jsonStr, err = replaceUuidValues(3, jsonStr)
+	if err != nil {
+		log.Printf("Error while replacing UUID v3: %v", err)
+		return make([]byte, 0), errors.Join(err)
+	}
+	jsonStr, err = replaceUuidValues(4, jsonStr)
+	if err != nil {
+		log.Printf("Error while replacing UUID v4: %v", err)
+		return make([]byte, 0), errors.Join(err)
+	}
+
+	return []byte(jsonStr), nil
 }
 
 func jsonForOneCollection(client *mongo.Client, dbName string, collName string, doRecover bool, initProgressBar bool) {

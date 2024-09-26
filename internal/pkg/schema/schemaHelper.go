@@ -281,7 +281,7 @@ func PrintSchema(database string, collection string, mainType *mongoHelper.Compl
 			panic(err)
 		}
 	} else {
-		outputFile, err := utils.CreateOutputFile(outputDir, "json", database, collection)
+		outputFile, err := utils.CreateOutputFile(outputDir, "schema.json", database, collection)
 		if err != nil {
 			panic(err)
 		}

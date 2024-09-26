@@ -16,6 +16,6 @@ func Test_dumpToFile(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		s := fmt.Sprintf("Das ist ein Test: %d\n", i)
 		bytes := []byte(s)
-		dumpToFile(bytes, dumpFile)
+		DumpBytesToFile(bytes, dumpFile)
 	}
 }

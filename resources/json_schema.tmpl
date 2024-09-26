@@ -17,9 +17,11 @@
         {{- end }}
       }
       {{ else }}
-      {{ if ne $prop.Comment "" -}}  "x-comment": "{{ $prop.Comment }}",
-      {{- end }}
+      {{ if ne $prop.Comment "" -}}
+      "x-comment": "{{ $prop.Comment }}",{{- end }}
       "x-bson-type": "{{ $prop.BsonType }}",
+      {{ if ne $prop.Format "" -}}  "format": "{{ $prop.Format }}",
+      {{- end }}
       {{ if $prop.IsComplex -}} "$ref": "#/definitions/{{ $prop.ValueType }}"
       {{- else -}} "type": "{{ $prop.ValueType }}"
       {{- end }}
@@ -47,8 +49,10 @@
             {{- end }}
           }
           {{- else }}
-          "$x-bson-type": "{{ $prop.BsonType }}",
           {{ if ne $prop.Comment "" -}}  "x-comment": "{{ $prop.Comment }}",
+          {{- end }}
+          "$x-bson-type": "{{ $prop.BsonType }}",
+          {{ if ne $prop.Format "" -}}  "format": "{{ $prop.Format }}",
           {{- end }}
           {{ if $prop.IsComplex -}} "$ref": "#/definitions/{{ $prop.ValueType }}"
           {{- else -}} "type": "{{ $prop.ValueType }}"

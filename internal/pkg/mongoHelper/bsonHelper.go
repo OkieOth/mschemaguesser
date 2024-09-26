@@ -376,8 +376,17 @@ func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplex
 }
 
 func handleTypeBinary(elem bson.RawElement, typeInfo *BasicElemInfo) {
+	subtype, _ := elem.Value().Binary()
 	typeInfo.ValueType = STRING
-	typeInfo.Comment = "Mongodb type binary"
+	typeInfo.Comment = fmt.Sprintf("Mongodb type binary: subtype=%v", subtype)
+	switch subtype {
+	case 3:
+		typeInfo.Format = "uuid"
+	case 4:
+		typeInfo.Format = "uuid"
+	case 5:
+		typeInfo.Format = "md5"
+	}
 	typeInfo.BsonType = "binData"
 }
 
