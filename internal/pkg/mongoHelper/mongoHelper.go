@@ -198,12 +198,12 @@ func dumpCollectionWithAggregationToFile(ctx context.Context, outputFile *os.Fil
 		bytesToWrite := binary.LittleEndian.AppendUint32(make([]byte, 0), uint32(docLen))
 		_, err = outputFile.Write(bytesToWrite)
 		if err != nil {
-			log.Printf("Failed to write document length to file:", err)
+			log.Printf("Failed to write document length to file: %v", err)
 			return dumpCount, err
 		}
 		_, err = outputFile.Write(bsonRaw)
 		if err != nil {
-			log.Printf("Failed to write BSON to file:", err)
+			log.Printf("Failed to write BSON to file: %v", err)
 			return dumpCount, err
 		}
 		dumpCount++
@@ -238,12 +238,12 @@ func dumpCollectionToFile(ctx context.Context, outputFile *os.File, client *mong
 		bytesToWrite := binary.LittleEndian.AppendUint32(make([]byte, 0), uint32(docLen))
 		_, err = outputFile.Write(bytesToWrite)
 		if err != nil {
-			log.Printf("Failed to write document length to file:", err)
+			log.Printf("Failed to write document length to file: %v", err)
 			return dumpCount, err
 		}
 		_, err = outputFile.Write(bsonRaw)
 		if err != nil {
-			log.Printf("Failed to write BSON to file:", err)
+			log.Printf("Failed to write BSON to file: %v", err)
 			return dumpCount, err
 		}
 		dumpCount++

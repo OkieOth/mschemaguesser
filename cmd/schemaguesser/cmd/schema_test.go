@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"testing"
 
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
@@ -47,25 +46,4 @@ func Test_replaceUuidValues(t *testing.T) {
 		t.Errorf("Got wrong jsonString: expected: %s\ngot: %s", expected, convertedStr)
 		return
 	}
-
-	fmt.Println(convertedStr)
-}
-
-func Test_1(t *testing.T) {
-	// export MONGO_PORT=30300
-	// export MONGO_HOST=10.29.113.6
-	// export MONGO_PASSWORD=secretpassword
-	// export MONGO_USER=admin
-	var conStr = "mongodb://admin:secretpassword@10.29.113.6:30300/admin"
-	client, err := mongoHelper.Connect(conStr)
-	defer mongoHelper.CloseConnection(client)
-
-	if err != nil {
-		t.Errorf("Failed to get client: %v", err)
-		return
-	}
-
-	databaseName = "tms-process-data"
-	collectionName = "VehicleDetectorsReadings"
-	printSchemaForOneCollection(client, databaseName, collectionName, false, true)
 }

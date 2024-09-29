@@ -1,0 +1,8 @@
+{
+  "version": "1.0.0",
+  "comment": "The file format is binary. Every entry consists of of a four byte field with the length of the following bson content and the mongo bson content itself",
+  "db": "tms-process-data",
+  "collection": "PublicTransport",
+  "exportTime": "2024-09-29T22:28:24.021436599+02:00",
+  "itemCount": 100
+}

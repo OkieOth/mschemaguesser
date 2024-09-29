@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"slices"
@@ -68,7 +69,17 @@ func importOneCollection(client *mongo.Client, dbName string, collName string, d
 		panic(err)
 	}
 	defer outputFile.Close()
-	mongoHelper.DumpCollectionToFile(outputFile, client, dbName, collName, itemCount, useAggregation, mongoV44)
+
+	var ctx context.Context
+	if timeout > 0 {
+		c, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+		ctx = c
+		defer cancel()
+	} else {
+		ctx = context.Background()
+	}
+
+	mongoHelper.DumpCollectionToFile(ctx, outputFile, client, dbName, collName, itemCount, useAggregation, mongoV44)
 }
 
 func importAllCollections(client *mongo.Client, dbName string, initProgressBar bool) {

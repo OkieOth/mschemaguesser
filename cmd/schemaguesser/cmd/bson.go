@@ -62,7 +62,7 @@ func bsonForOneCollection(client *mongo.Client, dbName string, collName string, 
 	defer outputFile.Close()
 	var ctx context.Context
 	if timeout > 0 {
-		c, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+		c, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
 		ctx = c
 		defer cancel()
 	} else {
@@ -76,8 +76,8 @@ func bsonForOneCollection(client *mongo.Client, dbName string, collName string, 
 		if timeout > 0 {
 			select {
 			case <-ctx.Done():
-				msg := fmt.Sprintf("[%s:%d] Timeout: %v\n", dbName, collName, ctx.Err().Error())
-				log.Printf(msg)
+				msg := fmt.Sprintf("[%s:%s] Timeout: %v\n", dbName, collName, ctx.Err().Error())
+				log.Print(msg)
 				ti := meta.TimeoutInfo{}
 				ti.Reached = true
 				ti.Seconds = timeout

@@ -20,7 +20,7 @@ var useAggregation bool
 
 var mongoV44 bool
 
-var timeout int16
+var timeout int64
 
 var getCmd = &cobra.Command{
 	Use:   "get",
@@ -45,7 +45,7 @@ func init() {
 
 	getCmd.PersistentFlags().Int64VarP(&itemCount, "item_count", "i", 100, "Number of collection entries used to build the schema")
 
-	getCmd.PersistentFlags().Int16VarP(&timeout, "timeout", "t", 30, "Timeout seconds of database queries. The default is 30s. In case you don't want any timeout, set the value to 0")
+	getCmd.PersistentFlags().Int64VarP(&timeout, "timeout", "t", 30, "Timeout seconds of database queries. The default is 30s. In case you don't want any timeout, set the value to 0")
 
 	getCmd.PersistentFlags().StringSliceVarP(&blacklist, "blacklist", "b", []string{}, "Blacklist names to skip")
 

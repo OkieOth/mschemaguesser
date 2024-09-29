@@ -1,8 +1,6 @@
 package utils
 
 import (
-	"fmt"
-	"os"
 	"testing"
 )
 

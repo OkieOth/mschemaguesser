@@ -16,7 +16,7 @@ var version = "1.0.0"
 
 type TimeoutInfo struct {
 	Reached bool   `json:"reached,omitempty"`
-	Seconds int16  `json:"seconds,omitempty"`
+	Seconds int64  `json:"seconds,omitempty"`
 	Error   string `json:"error,omitempty"`
 }
 
@@ -56,7 +56,7 @@ func WriteMetaInfo(outputDir string, dbName string, collName string, itemCount u
 	}
 	_, err = outputFile.Write(jsonData)
 	if err != nil {
-		log.Printf("Failed to write document length to file:", err)
+		log.Printf("Failed to write document length to file: %v", err)
 		return err
 	}
 
