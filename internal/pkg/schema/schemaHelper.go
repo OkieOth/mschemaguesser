@@ -118,10 +118,15 @@ func containsPropWithSameType(propToFind *mongoHelper.BasicElemInfo, t *mongoHel
 	}
 	for _, p := range t.Properties {
 		if p.AttribName == propToFind.AttribName {
+			if p.BsonType == "null" {
+				log.Printf("containsPropWithSameType: skip property for BsonType null: type: %s, property: %v", t.Name, p)
+				continue
+			}
+
 			if propToFind.IsComplex {
 				c2, err := getComplexTypeByName(p.ValueType, otherComplexTypes)
 				if err != nil {
-					log.Printf("containsPropWithSameType: error while resolve complex type (2): %v", err)
+					log.Printf("containsPropWithSameType: error while resolve complex type (2): %v, type: %s, property: %v", err, t.Name, p)
 					return false
 				}
 				if !typesAreEqual(c1, c2, otherComplexTypes) {
@@ -237,6 +242,9 @@ func ReduceTypes(mainType *mongoHelper.ComplexType, otherComplexTypes *[]mongoHe
 func GuessDicts(otherComplexTypes *[]mongoHelper.ComplexType) {
 	var typesToRemove []string
 	for _, e := range *otherComplexTypes {
+		if len(e.Properties) < 15 {
+			continue
+		}
 		if checkForSameTypesOfAllProps(e, otherComplexTypes) {
 			var typeNameToUse string
 			for i, p := range e.Properties {
@@ -262,10 +270,15 @@ func GuessDicts(otherComplexTypes *[]mongoHelper.ComplexType) {
 }
 
 func PrintSchema(database string, collection string, mainType *mongoHelper.ComplexType, otherComplexTypes *[]mongoHelper.ComplexType, outputDir string) {
-	tmplFile := "json_schema.tmpl"
+	// // for debugging reasons
+	// tmplFile := "json_schema.tmpl"
+	// tmpl := template.Must(template.New("json_schema.tmpl").Funcs(template.FuncMap{
+	// 	"LastIndexProps": lastIndexProps, "LastIndexTypes": lastIndexTypes,
+	// }).ParseFiles("resources/" + tmplFile))
+
 	tmpl := template.Must(template.New("json_schema.tmpl").Funcs(template.FuncMap{
 		"LastIndexProps": lastIndexProps, "LastIndexTypes": lastIndexTypes,
-	}).ParseFiles("resources/" + tmplFile))
+	}).Parse(templateStr))
 
 	input := TemplateInput{
 		MainType:          mainType,

@@ -37,8 +37,51 @@ var schemaCmd = &cobra.Command{
 				printSchemaForOneCollection(client, databaseName, collectionName, false, true)
 			}
 		}
-
 	},
+}
+
+var includeCount bool
+var commentPotentialKeyFields bool
+var persistKeyValues bool
+var persistKeyValuesDir string
+var keyUuid bool
+var keyUuidString bool
+var useZeroKeyUuid bool
+
+func init() {
+	schemaCmd.Flags().BoolVar(&includeCount, "include_count", false, "If set it includes the current number of elements of the collection into schema comments")
+	schemaCmd.Flags().BoolVar(&commentPotentialKeyFields, "key_fields", false, "If set it annotates potential key fields in the schema with a comment. Without additional flags only the fields of type 'objectId' are considered as keys")
+	schemaCmd.Flags().BoolVar(&persistKeyValues, "persist_key_values", false, "If set the unique key values are extracted from the sample data and stored in separate files")
+	schemaCmd.Flags().StringVar(&persistKeyValuesDir, "key_values_dir", "", "Optional output dir to store the files with the key values. If 'persist_key_values' is set and this flag is empty, then the output dir is used")
+
+	schemaCmd.Flags().BoolVar(&keyUuid, "uuid_keys", false, "If set, binary uuid fields are considered as key, too")
+	schemaCmd.Flags().BoolVar(&keyUuid, "uuid_str_keys", false, "If set, uuids in string format (e.g. '056bcf58-e17e-42ba-8186-f25ffbde8b35') are considered as key, too")
+	schemaCmd.Flags().BoolVar(&keyUuid, "zero_uuid_keys", false, "Per default zero uuids (e.g. '00000000-0000-0000-0000-000000000000') are ignored, use the switch to integrate them as values when found")
+}
+
+func getDocumentCount(client *mongo.Client, dbName string, collName string, mt *mongoHelper.ComplexType) {
+	startTime := time.Now()
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Recovered while counting collection (db: %s, collection: %s): %v", dbName, collName, r)
+		}
+	}()
+	if mt == nil {
+		log.Printf("[%s:%s] getDocumentCount: mainType pointer is nil, skip count", dbName, collName)
+		return
+	}
+	defer func() {
+		log.Printf("[%s:%s] count call finished in %v\n", dbName, collName, time.Since(startTime))
+	}()
+	log.Printf("[%s:%s] count ...\n", dbName, collName)
+	count, err := mongoHelper.CountCollection(client, dbName, collName)
+	if err != nil {
+		msg := fmt.Sprintf("[%s:%s] error while count elements: %v", dbName, collName, err)
+		log.Println(msg)
+		mt.Comments = append(mt.Comments, msg)
+	} else {
+		mt.Count.Set(count)
+	}
 }
 
 func printSchemaForOneCollection(client *mongo.Client, dbName string, collName string, doRecover bool, initProgressBar bool) {
@@ -48,18 +91,25 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 				log.Printf("Recovered while handling collection (db: %s, collection: %s): %v", dbName, collName, r)
 			}
 		}
+		if initProgressBar {
+			progressbar.ProgressOne()
+		}
 	}()
 	if initProgressBar {
 		descr := fmt.Sprintf("Schema for %s:%s", dbName, collName)
 		progressbar.Init(1, descr)
+	}
+	var otherComplexTypes []mongoHelper.ComplexType
+	var mainType mongoHelper.ComplexType
+
+	if includeCount {
+		getDocumentCount(client, dbName, collName, &mainType)
 	}
 	bsonRaw, err := mongoHelper.QueryCollection(client, dbName, collName, int(itemCount), useAggregation, mongoV44)
 	if err != nil {
 		msg := fmt.Sprintf("Error while reading data for collection (%s.%s): \n%v\n", dbName, collName, err)
 		panic(msg)
 	}
-	var otherComplexTypes []mongoHelper.ComplexType
-	var mainType mongoHelper.ComplexType
 	startTime := time.Now()
 	for _, b := range bsonRaw {
 		err = mongoHelper.ProcessBson(b, collName, &mainType, &otherComplexTypes)
@@ -76,9 +126,6 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 	} else {
 		log.Printf("No data for database: %s, collection: %s\n", dbName, collName)
 	}
-	if initProgressBar {
-		progressbar.ProgressOne()
-	}
 }
 
 func printSchemasForAllCollections(client *mongo.Client, dbName string, initProgressBar bool) {
@@ -88,12 +135,14 @@ func printSchemasForAllCollections(client *mongo.Client, dbName string, initProg
 		progressbar.Init(int64(len(*collections)), "Schema for all collections")
 	}
 
+	if includeCount {
+		wg.Add(len(*collections))
+	}
 	for _, coll := range *collections {
 		if slices.Contains(blacklist, coll) {
 			log.Printf("[%s:%s] skip blacklisted collection\n", dbName, coll)
 			continue
 		}
-		wg.Add(1)
 		go func(s string) {
 			startTime := time.Now()
 			defer func() {
@@ -115,12 +164,12 @@ func printSchemasForAllDatabases(client *mongo.Client, initProgressBar bool) {
 	if initProgressBar {
 		progressbar.Init(int64(len(*dbs)), "Schema for all databases")
 	}
+	wg.Add(len(*dbs))
 	for _, db := range *dbs {
 		if slices.Contains(blacklist, db) {
 			log.Printf("[%s] skip blacklisted DB\n", db)
 			continue
 		}
-		wg.Add(1)
 		go func(s string) {
 			startTime := time.Now()
 			defer func() {

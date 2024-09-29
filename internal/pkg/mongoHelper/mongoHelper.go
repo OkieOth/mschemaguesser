@@ -2,14 +2,19 @@ package mongoHelper
 
 import (
 	"context"
+	"encoding/binary"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"okieoth/schemaguesser/internal/pkg/utils"
+	"os"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	//"go.mongodb.org/mongo-driver/mongo/writeconcern"
 )
 
 var ConStr string
@@ -96,18 +101,21 @@ func queryCollectionWithAggregation(client *mongo.Client, databaseName string, c
 		{{"$match", bson.M{}}}, // Add any match conditions if needed
 		{{"$limit", itemCount}},
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	// Set allowDiskUse to true in aggregation options
 	aggregationOptions := options.Aggregate().SetAllowDiskUse(true)
 
 	startTime := time.Now()
-	cursor, err := collection.Aggregate(context.Background(), pipeline, aggregationOptions)
-	log.Printf("[%s:%s] Collection query executed in %v\n", databaseName, collectionName, time.Since(startTime))
+	cursor, err := collection.Aggregate(ctx, pipeline, aggregationOptions)
 	if err != nil {
+		log.Printf("[%s:%s] Collection query error: %v\n", databaseName, collectionName, err)
 		return ret, err
 	}
+	log.Printf("[%s:%s] Collection query executed in %v\n", databaseName, collectionName, time.Since(startTime))
 
-	for cursor.Next(context.Background()) {
+	for cursor.Next(ctx) {
 		bsonRaw := cursor.Current
 		ret = append(ret, bsonRaw)
 	}
@@ -122,26 +130,186 @@ func queryCollection(client *mongo.Client, databaseName string, collectionName s
 	collection := db.Collection(collectionName)
 	// setAllowDiskUse requires mongodb 4.4 at minimum
 	startTime := time.Now()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	findOptions := options.Find().SetLimit(int64(itemCount))
 	if mongo44 {
 		findOptions = findOptions.SetAllowDiskUse(true)
 	}
-	cursor, err := collection.Find(context.Background(), bson.M{}, findOptions)
-	log.Printf("Query executed in %v\n", time.Since(startTime))
+	cursor, err := collection.Find(ctx, bson.M{}, findOptions)
 	if err != nil {
 		//panic(err)
+		log.Printf("[%s:%s] Collection query error: %v\n", databaseName, collectionName, err)
 		return ret, err
 	}
+	log.Printf("Query executed in %v\n", time.Since(startTime))
 
-	i := 0
-	for cursor.Next(context.Background()) && i < itemCount {
+	for cursor.Next(ctx) {
 		bsonRaw := cursor.Current
 		ret = append(ret, bsonRaw)
-		i++
 	}
 
 	return ret, nil
+}
+
+func DumpCollectionToFile(ctx context.Context, outputFile *os.File, client *mongo.Client, databaseName string, collectionName string, itemCount int64, useAggregation bool, mongo44 bool) (uint64, error) {
+	if useAggregation {
+		return dumpCollectionWithAggregationToFile(ctx, outputFile, client, databaseName, collectionName, itemCount)
+	} else {
+		return dumpCollectionToFile(ctx, outputFile, client, databaseName, collectionName, itemCount, mongo44)
+	}
+}
+
+func dumpCollectionWithAggregationToFile(ctx context.Context, outputFile *os.File, client *mongo.Client, databaseName string, collectionName string, itemCount int64) (uint64, error) {
+	db := client.Database(databaseName)
+	collection := db.Collection(collectionName)
+	// setAllowDiskUse requires mongodb 4.4 at minimum
+	startTime := time.Now()
+
+	// Define a simple aggregation pipeline that acts like a find
+
+	var pipeline []bson.D
+	if itemCount > 0 {
+		pipeline = mongo.Pipeline{
+			{{"$match", bson.M{}}}, // Add any match conditions if needed
+			{{"$limit", itemCount}},
+		}
+	} else {
+		pipeline = mongo.Pipeline{
+			{{"$match", bson.M{}}}, // Add any match conditions if needed
+		}
+	}
+
+	// Set allowDiskUse to true in aggregation options
+	aggregationOptions := options.Aggregate().SetAllowDiskUse(true)
+
+	cursor, err := collection.Aggregate(ctx, pipeline, aggregationOptions)
+	if err != nil {
+		log.Printf("[%s:%s] Collection query error: %v\n", databaseName, collectionName, err)
+		return 0, err
+	}
+
+	log.Printf("[%s:%s] dumpCollectionToFile - Query executed in %v\n", databaseName, collectionName, time.Since(startTime))
+	var dumpCount uint64
+	for cursor.Next(ctx) {
+		bsonRaw := cursor.Current
+		docLen := len(bsonRaw)
+		bytesToWrite := binary.LittleEndian.AppendUint32(make([]byte, 0), uint32(docLen))
+		_, err = outputFile.Write(bytesToWrite)
+		if err != nil {
+			log.Printf("Failed to write document length to file:", err)
+			return dumpCount, err
+		}
+		_, err = outputFile.Write(bsonRaw)
+		if err != nil {
+			log.Printf("Failed to write BSON to file:", err)
+			return dumpCount, err
+		}
+		dumpCount++
+	}
+	return dumpCount, nil
+}
+
+func dumpCollectionToFile(ctx context.Context, outputFile *os.File, client *mongo.Client, databaseName string, collectionName string, itemCount int64, mongo44 bool) (uint64, error) {
+	db := client.Database(databaseName)
+	collection := db.Collection(collectionName)
+	// setAllowDiskUse requires mongodb 4.4 at minimum
+	startTime := time.Now()
+
+	findOptions := options.Find()
+	if itemCount > 0 {
+		findOptions.SetLimit(int64(itemCount))
+		if mongo44 {
+			findOptions = findOptions.SetAllowDiskUse(true)
+		}
+	}
+	cursor, err := collection.Find(ctx, bson.M{}, findOptions)
+	if err != nil {
+		//panic(err)
+		log.Printf("[%s:%s] dumpCollectionToFile - Collection query error: %v\n", databaseName, collectionName, err)
+		return 0, err
+	}
+	log.Printf("[%s:%s] dumpCollectionToFile - Query executed in %v\n", databaseName, collectionName, time.Since(startTime))
+	var dumpCount uint64
+	for cursor.Next(ctx) {
+		bsonRaw := cursor.Current
+		docLen := len(bsonRaw)
+		bytesToWrite := binary.LittleEndian.AppendUint32(make([]byte, 0), uint32(docLen))
+		_, err = outputFile.Write(bytesToWrite)
+		if err != nil {
+			log.Printf("Failed to write document length to file:", err)
+			return dumpCount, err
+		}
+		_, err = outputFile.Write(bsonRaw)
+		if err != nil {
+			log.Printf("Failed to write BSON to file:", err)
+			return dumpCount, err
+		}
+		dumpCount++
+	}
+	return dumpCount, nil
+}
+
+func readBSONFileAndInsertToMongo(collection *mongo.Collection, filePath string) error {
+	// Open the BSON file for reading
+	file, err := os.Open(filePath)
+	if err != nil {
+		log.Printf("failed to open input file: %v", err)
+		return err
+	}
+	defer file.Close()
+
+	buf := make([]byte, 4)
+
+	var documents []bson.M
+	for {
+
+		_, err := io.ReadFull(file, buf)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+		docLength := int32(binary.LittleEndian.Uint32(buf))
+		docBuf := make([]byte, docLength)
+		_, err = io.ReadFull(file, docBuf)
+		if err != nil {
+			return err
+		}
+		var doc bson.M
+		err = bson.Unmarshal(docBuf, &doc)
+		if err != nil {
+			log.Printf("failed to unmarshal bytes to bson doc: %v", err)
+			return err
+		}
+		documents = append(documents, doc)
+		if len(documents) == 100 {
+			// TODO do bulk insert
+			documents = documents[:0]
+		}
+	}
+	if len(documents) > 0 {
+		// TODO do bulk insert
+	}
+
+	return nil
+}
+
+func insertChunk(documents []interface{}, collection *mongo.Collection) error {
+	// Bulk insert the documents
+	// TODO
+	//wc := writeconcern.New(writeconcern.WMajority())
+	opts := options.InsertMany()
+
+	_, err := collection.InsertMany(context.TODO(), documents, opts)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Inserted %d documents in batch\n", len(documents))
+	return nil
 }
 
 // This version only works from mongodb v4.4
@@ -151,6 +319,47 @@ func QueryCollection(client *mongo.Client, databaseName string, collectionName s
 	} else {
 		return queryCollection(client, databaseName, collectionName, itemCount, mongo44)
 	}
+}
+
+func CountCollection(client *mongo.Client, dbName string, collName string) (int64, error) {
+	db := client.Database(dbName)
+	collection := db.Collection(collName)
+	startTime := time.Now()
+
+	pipeline := mongo.Pipeline{
+		{{"$count", "totalCount"}},
+	}
+
+	// Set aggregation options with AllowDiskUse
+	aggOpts := options.Aggregate().SetAllowDiskUse(true)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Run the aggregation
+	cursor, err := collection.Aggregate(ctx, pipeline, aggOpts)
+	if err != nil {
+		return -1, err
+	}
+
+	defer cursor.Close(ctx)
+
+	var result []bson.M
+	if err = cursor.All(ctx, &result); err != nil {
+		return -1, err
+	}
+	var c int64 = 0
+	if len(result) > 0 {
+		if count, ok := result[0]["totalCount"].(int32); ok {
+			c = int64(count)
+		} else if count, ok := result[0]["totalCount"].(int64); ok {
+			c = count
+		} else {
+			return -1, errors.New("Failed to cast the count to int64")
+		}
+	}
+	log.Printf("Query executed in %v, count=%d\n", time.Since(startTime), c)
+	return c, nil
 }
 
 func ReadCollectionsOrPanic(client *mongo.Client, dbName string) *[]string {

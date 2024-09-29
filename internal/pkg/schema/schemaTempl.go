@@ -1,3 +1,6 @@
+package schema
+
+var templateStr = `
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "{{ .MainType.Name }}",
@@ -75,3 +78,4 @@
     {{ end }}
   }
 }
+`

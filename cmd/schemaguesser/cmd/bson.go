@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"slices"
@@ -9,6 +10,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 
+	"okieoth/schemaguesser/internal/pkg/meta"
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
 	"okieoth/schemaguesser/internal/pkg/progressbar"
 
@@ -16,6 +18,9 @@ import (
 
 	"github.com/spf13/cobra"
 )
+
+// comment for the meta files
+var comment = "The file format is binary. Every entry consists of of a four byte field with the length of the following bson content and the mongo bson content itself"
 
 var bsonCmd = &cobra.Command{
 	Use:   "bson",
@@ -38,11 +43,56 @@ var bsonCmd = &cobra.Command{
 				bsonForOneCollection(client, databaseName, collectionName, false, true)
 			}
 		}
-
 	},
 }
 
 func bsonForOneCollection(client *mongo.Client, dbName string, collName string, doRecover bool, initProgressBar bool) {
+	defer func() {
+		if doRecover {
+			if r := recover(); r != nil {
+				log.Printf("Recovered while handling collection (db: %s, collection: %s): %v", dbName, collName, r)
+			}
+		}
+	}()
+
+	outputFile, err := utils.CreateOutputFile(outputDir, "bson", dbName, collName)
+	if err != nil {
+		panic(err)
+	}
+	defer outputFile.Close()
+	var ctx context.Context
+	if timeout > 0 {
+		c, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+		ctx = c
+		defer cancel()
+	} else {
+		ctx = context.Background()
+	}
+
+	if dumpCount, err := mongoHelper.DumpCollectionToFile(ctx, outputFile, client, dbName, collName, itemCount, useAggregation, mongoV44); err != nil {
+		panic(err)
+	} else {
+		var timeoutInfo *meta.TimeoutInfo
+		if timeout > 0 {
+			select {
+			case <-ctx.Done():
+				msg := fmt.Sprintf("[%s:%d] Timeout: %v\n", dbName, collName, ctx.Err().Error())
+				log.Printf(msg)
+				ti := meta.TimeoutInfo{}
+				ti.Reached = true
+				ti.Seconds = timeout
+				ti.Error = msg
+				timeoutInfo = &ti
+			}
+		}
+		if err := meta.WriteMetaInfo(outputDir, dbName, collName, dumpCount, comment, timeoutInfo); err != nil {
+			panic(err)
+		}
+	}
+}
+
+// most likely deprecated :D
+func bsonForOneCollection_old(client *mongo.Client, dbName string, collName string, doRecover bool, initProgressBar bool) {
 	defer func() {
 		if doRecover {
 			if r := recover(); r != nil {

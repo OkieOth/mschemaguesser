@@ -62,7 +62,7 @@ func replaceUuidValues(version byte, jsonStr string) (string, error) {
 			base64Str := match[1]
 			decoded, err := base64.StdEncoding.DecodeString(base64Str)
 			if err != nil {
-				log.Fatalf("Error decoding Base64 data: %v", err)
+				log.Printf("Error decoding Base64 data: %v", err)
 				return "", err
 			}
 			if len(decoded) == 16 { // UUIDs are 16 bytes long

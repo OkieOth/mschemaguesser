@@ -10,7 +10,7 @@ import (
 )
 
 func sanitize(input string) string {
-	re := regexp.MustCompile(`[^a-zA-Z0-9]`)
+	re := regexp.MustCompile(`[^a-zA-Z0-9-]`)
 	return re.ReplaceAllString(input, "_")
 }
 
@@ -24,19 +24,6 @@ func CreateOutputFile(outputDir string, fileExt string, dbName string, colName s
 
 func DumpBsonCollectionData(b bson.Raw, dataDumpFile *os.File) error {
 	return DumpBytesToFile([]byte(b), dataDumpFile)
-	// var bsonMap map[string]interface{}
-	// err := bson.Unmarshal(b, &bsonMap)
-	// if err != nil {
-	// 	log.Fatal("Error unmarshalling BSON:", err)
-	// 	return err
-	// }
-
-	// jsonData, err := json.MarshalIndent(bsonMap, "", "  ")
-	// if err != nil {
-	// 	log.Fatal("Error marshalling JSON:", err)
-	// }
-
-	// return dumpToFile(jsonData, dataDumpFile)
 }
 
 func DumpBytesToFile(b []byte, dumpFile *os.File) error {

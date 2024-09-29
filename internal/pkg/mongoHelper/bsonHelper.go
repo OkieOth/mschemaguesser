@@ -6,6 +6,8 @@ import (
 	"log"
 	"unicode"
 
+	ot "okieoth/schemaguesser/internal/pkg/optional_types"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/bsontype"
 )
@@ -23,6 +25,9 @@ type ComplexType struct {
 	DictValueType string
 	UsedKeys      []string
 	TypeReduced   bool
+	Comments      []string
+	Count         ot.Optional[int64]
+	IsKey         ot.Optional[bool]
 }
 
 type BasicElemInfo struct {
@@ -34,6 +39,7 @@ type BasicElemInfo struct {
 	ArrayDimensions uint
 	Comment         string
 	IsComplex       bool
+	Comments        []string
 }
 
 func GetNewTypeName(name string, otherComplexTypes *[]ComplexType) string {
@@ -118,7 +124,7 @@ func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, oth
 	}
 	elements, err := doc.Elements()
 	if err != nil {
-		log.Fatalf("Error while parsing bson elements: %v", err)
+		log.Printf("Error while parsing bson elements: %v", err)
 		return err
 	}
 	if mainType.Name == "" {
