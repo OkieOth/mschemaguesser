@@ -83,6 +83,7 @@ func bsonForOneCollection(client *mongo.Client, dbName string, collName string, 
 				ti.Seconds = timeout
 				ti.Error = msg
 				timeoutInfo = &ti
+			default:
 			}
 		}
 		if err := meta.WriteMetaInfo(outputDir, dbName, collName, dumpCount, comment, timeoutInfo); err != nil {
