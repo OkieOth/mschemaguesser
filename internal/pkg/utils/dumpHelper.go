@@ -14,11 +14,14 @@ func sanitize(input string) string {
 	return re.ReplaceAllString(input, "_")
 }
 
-func CreateOutputFile(outputDir string, fileExt string, dbName string, colName string) (*os.File, error) {
+func GetFileName(dir string, fileExt string, dbName string, colName string) string {
 	safeDbName := sanitize(dbName)
 	safeColName := sanitize(colName)
+	return filepath.Join(dir, fmt.Sprintf("%s_%s.%s", safeDbName, safeColName, fileExt))
+}
 
-	filePath := filepath.Join(outputDir, fmt.Sprintf("%s_%s.%s", safeDbName, safeColName, fileExt))
+func CreateOutputFile(outputDir string, fileExt string, dbName string, colName string) (*os.File, error) {
+	filePath := GetFileName(outputDir, fileExt, dbName, colName)
 	return os.Create(filePath)
 }
 

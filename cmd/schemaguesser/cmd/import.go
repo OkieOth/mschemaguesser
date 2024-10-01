@@ -10,6 +10,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 
+	"okieoth/schemaguesser/internal/pkg/importHelper"
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
 	"okieoth/schemaguesser/internal/pkg/progressbar"
 
@@ -20,10 +21,10 @@ import (
 
 var inputDir string
 
-var bulkSize int16
+var chunkSize int64
 
 var importCmd = &cobra.Command{
-	Use:   "get",
+	Use:   "import",
 	Short: "Import data to mongodb",
 	Long:  `Based on a given mongodb connection you can import data from before stored BSON persistent files.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -48,11 +49,16 @@ var importCmd = &cobra.Command{
 
 func init() {
 
-	getCmd.Flags().StringVarP(&databaseName, "database", "d", "all", "Database for the import")
+	importCmd.Flags().StringVarP(&databaseName, "database", "d", "all", "Database for the import")
 
-	getCmd.Flags().StringVarP(&collectionName, "collection", "c", "all", "Name of the collection to import")
+	importCmd.Flags().StringVarP(&collectionName, "collection", "c", "all", "Name of the collection to import")
 
-	getCmd.Flags().StringVar(&inputDir, "input", "", "The directory where the BSON exports can be found. This files need to be created with the 'get bson' commands of this tool")
+	importCmd.Flags().StringVar(&inputDir, "input", "", "The directory where the BSON exports can be found. This files need to be created with the 'get bson' commands of this tool")
+
+	importCmd.Flags().StringSliceVarP(&blacklist, "blacklist", "b", []string{}, "Blacklist names to skip")
+
+	importCmd.Flags().Int64Var(&chunkSize, "chunk_size", 100, "Chunk size to use for the imports, default is 100")
+
 }
 
 func importOneCollection(client *mongo.Client, dbName string, collName string, doRecover bool, initProgressBar bool) {
@@ -64,11 +70,7 @@ func importOneCollection(client *mongo.Client, dbName string, collName string, d
 		}
 	}()
 
-	outputFile, err := utils.CreateOutputFile(outputDir, "bson", dbName, collName)
-	if err != nil {
-		panic(err)
-	}
-	defer outputFile.Close()
+	importFile := utils.GetFileName(inputDir, "bson", dbName, collName)
 
 	var ctx context.Context
 	if timeout > 0 {
@@ -79,17 +81,25 @@ func importOneCollection(client *mongo.Client, dbName string, collName string, d
 		ctx = context.Background()
 	}
 
-	mongoHelper.DumpCollectionToFile(ctx, outputFile, client, dbName, collName, itemCount, useAggregation, mongoV44)
+	itemCount, err := importHelper.ImportData(client, importFile, dbName, collName, chunkSize, &ctx)
+	if err != nil {
+		log.Printf("[%s:%s] Error while importing data: %v\n", dbName, collName, err)
+	} else {
+		log.Printf("[%s:%s] %d items successfully imported\n", dbName, collName, itemCount)
+	}
 }
 
 func importAllCollections(client *mongo.Client, dbName string, initProgressBar bool) {
-	collections := mongoHelper.ReadCollectionsOrPanic(client, dbName)
+	collections, err := importHelper.AllCollectionsForDb(inputDir, dbName)
+	if err != nil {
+		panic(err)
+	}
 	var wg sync.WaitGroup
 	if initProgressBar {
-		progressbar.Init(int64(len(*collections)), "BSON export for all collections")
+		progressbar.Init(int64(len(collections)), "BSON import for all collections")
 	}
 
-	for _, coll := range *collections {
+	for _, coll := range collections {
 		if slices.Contains(blacklist, coll) {
 			log.Printf("[%s:%s] skip blacklisted collection\n", dbName, coll)
 			continue
@@ -98,25 +108,28 @@ func importAllCollections(client *mongo.Client, dbName string, initProgressBar b
 		go func(s string) {
 			startTime := time.Now()
 			defer func() {
-				log.Printf("[%s:%s] BSON export of collection in %v\n", dbName, s, time.Since(startTime))
+				log.Printf("[%s:%s] BSON import of collection in %v\n", dbName, s, time.Since(startTime))
 				wg.Done()
 				if initProgressBar {
 					progressbar.ProgressOne()
 				}
 			}()
-			bsonForOneCollection(client, dbName, s, true, false)
+			importOneCollection(client, dbName, s, true, false)
 		}(coll)
 	}
 	wg.Wait()
 }
 
 func importAllDatabases(client *mongo.Client, initProgressBar bool) {
-	dbs := mongoHelper.ReadDatabasesOrPanic(client)
+	dbs, err := importHelper.AllDatabases(inputDir)
+	if err != nil {
+		panic(err)
+	}
 	var wg sync.WaitGroup
 	if initProgressBar {
-		progressbar.Init(int64(len(*dbs)), "BSON export for all databases")
+		progressbar.Init(int64(len(dbs)), "BSON import for all databases")
 	}
-	for _, db := range *dbs {
+	for _, db := range dbs {
 		if slices.Contains(blacklist, db) {
 			log.Printf("[%s] skip blacklisted DB\n", db)
 			continue
@@ -125,13 +138,13 @@ func importAllDatabases(client *mongo.Client, initProgressBar bool) {
 		go func(s string) {
 			startTime := time.Now()
 			defer func() {
-				log.Printf("[%s] BSON exported from DB in %v\n", s, time.Since(startTime))
+				log.Printf("[%s] BSON imported into DB in %v\n", s, time.Since(startTime))
 				wg.Done()
 				if initProgressBar {
 					progressbar.ProgressOne()
 				}
 			}()
-			bsonForAllCollections(client, s, false)
+			importAllCollections(client, s, false)
 		}(db)
 	}
 	wg.Wait()
