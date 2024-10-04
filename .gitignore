@@ -29,4 +29,4 @@ mschemaguesser
 *.log
 log.txt
 set_debug_env.sh
-debug_tests.go
+debug_test.go

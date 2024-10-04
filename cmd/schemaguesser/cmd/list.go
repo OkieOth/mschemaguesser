@@ -32,7 +32,7 @@ var databasesCmd = &cobra.Command{
 		defer mongoHelper.CloseConnection(client)
 
 		dbs := mongoHelper.ReadDatabasesOrPanic(client)
-		for _, s := range *dbs {
+		for _, s := range dbs {
 			fmt.Println(s)
 		}
 	},
@@ -95,7 +95,7 @@ func init() {
 
 func printOneCollection(client *mongo.Client, dbName string, verbose bool) {
 	collections := mongoHelper.ReadCollectionsOrPanic(client, dbName)
-	for _, s := range *collections {
+	for _, s := range collections {
 		if verbose {
 			fmt.Printf("Database: %s, Collection: %s\n", dbName, s)
 		} else {
@@ -106,7 +106,7 @@ func printOneCollection(client *mongo.Client, dbName string, verbose bool) {
 
 func printAllCollections(client *mongo.Client) {
 	dbs := mongoHelper.ReadDatabasesOrPanic(client)
-	for _, db := range *dbs {
+	for _, db := range dbs {
 		printOneCollection(client, db, true)
 	}
 }
@@ -128,14 +128,14 @@ func printIndexesForOneCollection(client *mongo.Client, dbName string, collName 
 
 func printIndexesForAllCollections(client *mongo.Client, dbName string) {
 	collections := mongoHelper.ReadCollectionsOrPanic(client, dbName)
-	for _, coll := range *collections {
+	for _, coll := range collections {
 		printIndexesForOneCollection(client, dbName, coll, true)
 	}
 }
 
 func printIndexesForAllDatabases(client *mongo.Client) {
 	dbs := mongoHelper.ReadDatabasesOrPanic(client)
-	for _, db := range *dbs {
+	for _, db := range dbs {
 		printIndexesForAllCollections(client, db)
 	}
 }

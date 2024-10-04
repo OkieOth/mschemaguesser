@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
@@ -105,7 +106,13 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 	if includeCount {
 		getDocumentCount(client, dbName, collName, &mainType)
 	}
-	bsonRaw, err := mongoHelper.QueryCollection(client, dbName, collName, int(itemCount), useAggregation, mongoV44)
+
+	bsonRaw := make([]bson.Raw, 0)
+	err := mongoHelper.QueryCollection(client, dbName, collName, int(itemCount), useAggregation, mongoV44, func(data bson.Raw) error {
+		bsonRaw = append(bsonRaw, data)
+		return nil
+	})
+
 	if err != nil {
 		msg := fmt.Sprintf("Error while reading data for collection (%s.%s): \n%v\n", dbName, collName, err)
 		panic(msg)
@@ -132,13 +139,13 @@ func printSchemasForAllCollections(client *mongo.Client, dbName string, initProg
 	collections := mongoHelper.ReadCollectionsOrPanic(client, dbName)
 	var wg sync.WaitGroup
 	if initProgressBar {
-		progressbar.Init(int64(len(*collections)), "Schema for all collections")
+		progressbar.Init(int64(len(collections)), "Schema for all collections")
 	}
 
 	if includeCount {
-		wg.Add(len(*collections))
+		wg.Add(len(collections))
 	}
-	for _, coll := range *collections {
+	for _, coll := range collections {
 		if slices.Contains(blacklist, coll) {
 			log.Printf("[%s:%s] skip blacklisted collection\n", dbName, coll)
 			continue
@@ -162,10 +169,10 @@ func printSchemasForAllDatabases(client *mongo.Client, initProgressBar bool) {
 	dbs := mongoHelper.ReadDatabasesOrPanic(client)
 	var wg sync.WaitGroup
 	if initProgressBar {
-		progressbar.Init(int64(len(*dbs)), "Schema for all databases")
+		progressbar.Init(int64(len(dbs)), "Schema for all databases")
 	}
-	wg.Add(len(*dbs))
-	for _, db := range *dbs {
+	wg.Add(len(dbs))
+	for _, db := range dbs {
 		if slices.Contains(blacklist, db) {
 			log.Printf("[%s] skip blacklisted DB\n", db)
 			continue

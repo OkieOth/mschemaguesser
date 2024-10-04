@@ -17,6 +17,8 @@ import (
 	//"go.mongodb.org/mongo-driver/mongo/writeconcern"
 )
 
+type HandleDataCallback func(bson.Raw) error
+
 var ConStr string
 
 func Connect(conStr string) (*mongo.Client, error) {
@@ -90,9 +92,7 @@ func ListIndexes(client *mongo.Client, databaseName string, collectionName strin
 	return ret, nil
 }
 
-func queryCollectionWithAggregation(client *mongo.Client, databaseName string, collectionName string, itemCount int) ([]bson.Raw, error) {
-	var ret []bson.Raw
-
+func queryCollectionWithAggregation(client *mongo.Client, databaseName string, collectionName string, itemCount int, handleDataCallback HandleDataCallback) error {
 	db := client.Database(databaseName)
 	collection := db.Collection(collectionName)
 
@@ -111,21 +111,22 @@ func queryCollectionWithAggregation(client *mongo.Client, databaseName string, c
 	cursor, err := collection.Aggregate(ctx, pipeline, aggregationOptions)
 	if err != nil {
 		log.Printf("[%s:%s] Collection query error: %v\n", databaseName, collectionName, err)
-		return ret, err
+		return err
 	}
 	log.Printf("[%s:%s] Collection query executed in %v\n", databaseName, collectionName, time.Since(startTime))
 
 	for cursor.Next(ctx) {
 		bsonRaw := cursor.Current
-		ret = append(ret, bsonRaw)
+		if err := handleDataCallback(bsonRaw); err != nil {
+			log.Printf("[%s:%s] error while processing the data: %v\n", databaseName, collectionName, err)
+			return err
+		}
 	}
 
-	return ret, nil
+	return nil
 }
 
-func queryCollection(client *mongo.Client, databaseName string, collectionName string, itemCount int, mongo44 bool) ([]bson.Raw, error) {
-	var ret []bson.Raw
-
+func queryCollection(client *mongo.Client, databaseName string, collectionName string, itemCount int, mongo44 bool, handleDataCallback HandleDataCallback) error {
 	db := client.Database(databaseName)
 	collection := db.Collection(collectionName)
 	// setAllowDiskUse requires mongodb 4.4 at minimum
@@ -141,16 +142,19 @@ func queryCollection(client *mongo.Client, databaseName string, collectionName s
 	if err != nil {
 		//panic(err)
 		log.Printf("[%s:%s] Collection query error: %v\n", databaseName, collectionName, err)
-		return ret, err
+		return err
 	}
 	log.Printf("Query executed in %v\n", time.Since(startTime))
 
 	for cursor.Next(ctx) {
 		bsonRaw := cursor.Current
-		ret = append(ret, bsonRaw)
+		if err := handleDataCallback(bsonRaw); err != nil {
+			log.Printf("[%s:%s] error while processing the data: %v\n", databaseName, collectionName, err)
+			return err
+		}
 	}
 
-	return ret, nil
+	return nil
 }
 
 func DumpCollectionToFile(ctx context.Context, outputFile *os.File, client *mongo.Client, databaseName string, collectionName string, itemCount int64, useAggregation bool, mongo44 bool) (uint64, error) {
@@ -313,11 +317,11 @@ func insertChunk(documents []interface{}, collection *mongo.Collection) error {
 }
 
 // This version only works from mongodb v4.4
-func QueryCollection(client *mongo.Client, databaseName string, collectionName string, itemCount int, useAggregation bool, mongo44 bool) ([]bson.Raw, error) {
+func QueryCollection(client *mongo.Client, databaseName string, collectionName string, itemCount int, useAggregation bool, mongo44 bool, handleDataCallback HandleDataCallback) error {
 	if useAggregation {
-		return queryCollectionWithAggregation(client, databaseName, collectionName, itemCount)
+		return queryCollectionWithAggregation(client, databaseName, collectionName, itemCount, handleDataCallback)
 	} else {
-		return queryCollection(client, databaseName, collectionName, itemCount, mongo44)
+		return queryCollection(client, databaseName, collectionName, itemCount, mongo44, handleDataCallback)
 	}
 }
 
@@ -362,20 +366,20 @@ func CountCollection(client *mongo.Client, dbName string, collName string) (int6
 	return c, nil
 }
 
-func ReadCollectionsOrPanic(client *mongo.Client, dbName string) *[]string {
+func ReadCollectionsOrPanic(client *mongo.Client, dbName string) []string {
 	collections, err := ListCollections(client, dbName)
 	if err != nil {
 		msg := fmt.Sprintf("Error while reading collections for database (%s): \n%v\n", dbName, err)
 		panic(msg)
 	}
-	return &collections
+	return collections
 }
 
-func ReadDatabasesOrPanic(client *mongo.Client) *[]string {
+func ReadDatabasesOrPanic(client *mongo.Client) []string {
 	dbs, err := ListDatabases(client)
 	if err != nil {
 		msg := fmt.Sprintf("Error while reading existing databases: \n%v\n", err)
 		panic(msg)
 	}
-	return &dbs
+	return dbs
 }

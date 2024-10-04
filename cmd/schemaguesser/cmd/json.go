@@ -121,12 +121,7 @@ func jsonForOneCollection(client *mongo.Client, dbName string, collName string, 
 		descr := fmt.Sprintf("JSON export of %s:%s", dbName, collName)
 		progressbar.Init(1, descr)
 	}
-	bsonRaw, err := mongoHelper.QueryCollection(client, dbName, collName, int(itemCount), useAggregation, mongoV44)
 
-	if err != nil {
-		msg := fmt.Sprintf("Error while reading data for collection (%s.%s): \n%v\n", dbName, collName, err)
-		panic(msg)
-	}
 	outputFile, err := utils.CreateOutputFile(outputDir, "json", dbName, collName)
 	if err != nil {
 		panic(err)
@@ -135,12 +130,13 @@ func jsonForOneCollection(client *mongo.Client, dbName string, collName string, 
 
 	startTime := time.Now()
 	i := 0
+
 	utils.DumpBytesToFile([]byte("["), outputFile)
-	for _, b := range bsonRaw {
-		bytes, err := getJsonBytes(&b)
+	err = mongoHelper.QueryCollection(client, dbName, collName, int(itemCount), useAggregation, mongoV44, func(data bson.Raw) error {
+		bytes, err := getJsonBytes(&data)
 		if err != nil {
 			log.Printf("Error while converting to JSON: %v", err)
-			continue
+			return err
 		}
 		if i > 0 {
 			utils.DumpBytesToFile([]byte(","), outputFile)
@@ -148,8 +144,14 @@ func jsonForOneCollection(client *mongo.Client, dbName string, collName string, 
 		utils.DumpBytesToFile(bytes, outputFile)
 		utils.DumpBytesToFile([]byte("\n"), outputFile)
 		i++
-	}
+		return nil // TODO
+	})
 	utils.DumpBytesToFile([]byte("]"), outputFile)
+
+	if err != nil {
+		msg := fmt.Sprintf("Error while reading data for collection (%s.%s): \n%v\n", dbName, collName, err)
+		panic(msg)
+	}
 	log.Printf("[%s:%s] JSON exported for collection in %v\n", dbName, collName, time.Since(startTime))
 	if initProgressBar {
 		progressbar.ProgressOne()
@@ -160,10 +162,10 @@ func jsonForAllCollections(client *mongo.Client, dbName string, initProgressBar 
 	collections := mongoHelper.ReadCollectionsOrPanic(client, dbName)
 	var wg sync.WaitGroup
 	if initProgressBar {
-		progressbar.Init(int64(len(*collections)), "JSON export for all collections")
+		progressbar.Init(int64(len(collections)), "JSON export for all collections")
 	}
 
-	for _, coll := range *collections {
+	for _, coll := range collections {
 		if slices.Contains(blacklist, coll) {
 			log.Printf("[%s:%s] skip blacklisted collection\n", dbName, coll)
 			continue
@@ -188,9 +190,9 @@ func jsonForAllDatabases(client *mongo.Client, initProgressBar bool) {
 	dbs := mongoHelper.ReadDatabasesOrPanic(client)
 	var wg sync.WaitGroup
 	if initProgressBar {
-		progressbar.Init(int64(len(*dbs)), "JSON export for all databases")
+		progressbar.Init(int64(len(dbs)), "JSON export for all databases")
 	}
-	for _, db := range *dbs {
+	for _, db := range dbs {
 		if slices.Contains(blacklist, db) {
 			log.Printf("[%s] skip blacklisted DB\n", db)
 			continue

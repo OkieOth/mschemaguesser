@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"okieoth/schemaguesser/internal/pkg/meta"
@@ -27,6 +28,10 @@ var bsonCmd = &cobra.Command{
 	Short: "dump raw bson content",
 	Long:  "With this command you can dump raw content of one or more mongodb collections",
 	Run: func(cmd *cobra.Command, args []string) {
+		if useDumps {
+			fmt.Println("This command doesn't work with the 'use_dumps' switch. Please remove it.")
+			return
+		}
 		client, err := mongoHelper.Connect(mongoHelper.ConStr)
 		if err != nil {
 			msg := fmt.Sprintf("Failed to connect to db: %v", err)
@@ -105,13 +110,6 @@ func bsonForOneCollection_old(client *mongo.Client, dbName string, collName stri
 		descr := fmt.Sprintf("BSON export of %s:%s", dbName, collName)
 		progressbar.Init(1, descr)
 	}
-	//bsonRaw, err := mongoHelper.QueryCollectionWithAggregation(client, dbName, collName, int(itemCount))
-	bsonRaw, err := mongoHelper.QueryCollection(client, dbName, collName, int(itemCount), useAggregation, mongoV44)
-
-	if err != nil {
-		msg := fmt.Sprintf("Error while reading data for collection (%s.%s): \n%v\n", dbName, collName, err)
-		panic(msg)
-	}
 	outputFile, err := utils.CreateOutputFile(outputDir, "bson", dbName, collName)
 	if err != nil {
 		panic(err)
@@ -119,9 +117,16 @@ func bsonForOneCollection_old(client *mongo.Client, dbName string, collName stri
 	defer outputFile.Close()
 
 	startTime := time.Now()
-	for _, b := range bsonRaw {
-		utils.DumpBsonCollectionData(b, outputFile)
+
+	err = mongoHelper.QueryCollection(client, dbName, collName, int(itemCount), useAggregation, mongoV44, func(data bson.Raw) error {
+		utils.DumpBsonCollectionData(data, outputFile)
 		utils.DumpBsonCollectionData([]byte("\n"), outputFile)
+		return nil // TODO
+	})
+
+	if err != nil {
+		msg := fmt.Sprintf("Error while reading and processing data for collection (%s.%s): \n%v\n", dbName, collName, err)
+		panic(msg)
 	}
 	log.Printf("[%s:%s] BSON exported for collection in %v\n", dbName, collName, time.Since(startTime))
 	if initProgressBar {
@@ -130,13 +135,13 @@ func bsonForOneCollection_old(client *mongo.Client, dbName string, collName stri
 }
 
 func bsonForAllCollections(client *mongo.Client, dbName string, initProgressBar bool) {
-	collections := mongoHelper.ReadCollectionsOrPanic(client, dbName)
+	collections := getAllCollectionsOrPanic(client, dbName)
 	var wg sync.WaitGroup
 	if initProgressBar {
-		progressbar.Init(int64(len(*collections)), "BSON export for all collections")
+		progressbar.Init(int64(len(collections)), "BSON export for all collections")
 	}
 
-	for _, coll := range *collections {
+	for _, coll := range collections {
 		if slices.Contains(blacklist, coll) {
 			log.Printf("[%s:%s] skip blacklisted collection\n", dbName, coll)
 			continue
@@ -158,12 +163,12 @@ func bsonForAllCollections(client *mongo.Client, dbName string, initProgressBar 
 }
 
 func bsonForAllDatabases(client *mongo.Client, initProgressBar bool) {
-	dbs := mongoHelper.ReadDatabasesOrPanic(client)
+	dbs := getAllDatabasesOrPanic(client)
 	var wg sync.WaitGroup
 	if initProgressBar {
-		progressbar.Init(int64(len(*dbs)), "BSON export for all databases")
+		progressbar.Init(int64(len(dbs)), "BSON export for all databases")
 	}
-	for _, db := range *dbs {
+	for _, db := range dbs {
 		if slices.Contains(blacklist, db) {
 			log.Printf("[%s] skip blacklisted DB\n", db)
 			continue

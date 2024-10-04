@@ -2,8 +2,13 @@ package cmd
 
 import (
 	"fmt"
+	"log"
+
+	"okieoth/schemaguesser/internal/pkg/importHelper"
+	"okieoth/schemaguesser/internal/pkg/mongoHelper"
 
 	"github.com/spf13/cobra"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var databaseName string
@@ -21,6 +26,10 @@ var useAggregation bool
 var mongoV44 bool
 
 var timeout int64
+
+var useDumps bool
+
+var dumpDir string
 
 var getCmd = &cobra.Command{
 	Use:   "get",
@@ -52,4 +61,45 @@ func init() {
 	getCmd.PersistentFlags().BoolVar(&useAggregation, "use_aggregation", false, "Use an aggregation pipeline to query the collections, this allows to enable the disk use for sorting also in mongo < 4.4")
 
 	getCmd.PersistentFlags().BoolVar(&mongoV44, "mongo_v44", false, "The connection is to a mongodb newer than 4.4, enables additional driver features")
+
+	getCmd.PersistentFlags().BoolVar(&useDumps, "use_dumps", false, "This flag allows to use before dumped bson data (by the use of the `get bson`command)")
+
+	getCmd.PersistentFlags().StringVar(&dumpDir, "dump_dir", "", "The directory where the dumps to use, can be found")
+
+}
+
+func getAllDatabasesOrPanic(client *mongo.Client) []string {
+	if useDumps {
+		if dumpDir == "" {
+			panic("no 'dump_dir' flag given, so no idea from where to get the data")
+		}
+		ret, err := importHelper.AllDatabases(dumpDir)
+		if err != nil {
+			log.Fatalf("error while reading dbs from 'dump_dir': %v", err)
+		}
+		return ret
+	} else {
+		if client == nil {
+			panic("mongo client not initialized to query databases")
+		}
+		return mongoHelper.ReadDatabasesOrPanic(client)
+	}
+}
+
+func getAllCollectionsOrPanic(client *mongo.Client, dbName string) []string {
+	if useDumps {
+		if dumpDir == "" {
+			panic("no 'dump_dir' flag given, so no idea from where to get the data")
+		}
+		ret, err := importHelper.AllCollectionsForDb(dumpDir, dbName)
+		if err != nil {
+			log.Fatalf("error while reading collections for db (%s) from 'dump_dir': %v", dbName, err)
+		}
+		return ret
+	} else {
+		if client == nil {
+			panic("mongo client not initialized to query databases")
+		}
+		return mongoHelper.ReadCollectionsOrPanic(client, dbName)
+	}
 }
