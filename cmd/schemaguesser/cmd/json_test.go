@@ -8,7 +8,7 @@ import (
 	"okieoth/schemaguesser/internal/pkg/utils"
 )
 
-func Test_bsonForAllDatabases_IT(t *testing.T) {
+func Test_jsonForAllDatabases_IT(t *testing.T) {
 	outputDir = "../../../temp"
 	defer utils.CleanDirectory(outputDir, false)
 
@@ -25,22 +25,21 @@ func Test_bsonForAllDatabases_IT(t *testing.T) {
 		return
 	}
 
-	bsonForAllDatabases(client, false)
+	jsonForAllDatabases(client, false)
 
-	expected := []string{"admin_system_users.bson", "admin_system_version.bson", "config_system_sessions.bson", "dummy_c1.meta",
-		"dummy_c2.meta", "local_startup_log.meta", "admin_system_users.meta", "admin_system_version.meta",
-		"dummy_c1.bson", "dummy_c2.bson", "local_startup_log.bson"}
+	expected := []string{"admin_system_users.json", "admin_system_version.json", "config_system_sessions.json",
+		"dummy_c1.json", "dummy_c2.json", "local_startup_log.json"}
 
 	if !testhelper.ValidateExpectedFiles(outputDir, expected, t) {
 		return
 	}
 	// because for some of the files are there no permissions to read ... so the test is melted down
 	// to my own collections
-	expected2 := []string{"dummy_c1.meta", "dummy_c2.meta", "dummy_c1.bson", "dummy_c2.bson"}
+	expected2 := []string{"dummy_c1.json", "dummy_c2.json"}
 	_, _ = testhelper.CheckFilesNonZero(outputDir, expected2, t)
 }
 
-func Test_bsonForAllCollections_IT(t *testing.T) {
+func Test_jsonForAllCollections_IT(t *testing.T) {
 	outputDir = "../../../temp"
 	defer utils.CleanDirectory(outputDir, false)
 
@@ -57,9 +56,9 @@ func Test_bsonForAllCollections_IT(t *testing.T) {
 		return
 	}
 
-	bsonForAllCollections(client, "dummy", false)
+	jsonForAllCollections(client, "dummy", false)
 
-	expected := []string{"dummy_c1.bson", "dummy_c2.bson", "dummy_c1.meta", "dummy_c2.meta"}
+	expected := []string{"dummy_c1.json", "dummy_c2.json"}
 
 	if !testhelper.ValidateExpectedFiles(outputDir, expected, t) {
 		return
@@ -67,7 +66,7 @@ func Test_bsonForAllCollections_IT(t *testing.T) {
 	_, _ = testhelper.CheckFilesNonZero(outputDir, expected, t)
 }
 
-func Test_bsonForOneCollection_IT(t *testing.T) {
+func Test_jsonForOneCollection_IT(t *testing.T) {
 	outputDir = "../../../temp"
 	defer utils.CleanDirectory(outputDir, false)
 
@@ -84,9 +83,9 @@ func Test_bsonForOneCollection_IT(t *testing.T) {
 		return
 	}
 
-	bsonForOneCollection(client, "dummy", "c2", false, false)
+	jsonForOneCollection(client, "dummy", "c2", false, false)
 
-	expected := []string{"dummy_c2.bson", "dummy_c2.meta"}
+	expected := []string{"dummy_c2.json"}
 
 	if !testhelper.ValidateExpectedFiles(outputDir, expected, t) {
 		return

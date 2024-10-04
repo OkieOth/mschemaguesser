@@ -6,9 +6,8 @@ import (
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
 )
 
-var conStr = "mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/admin"
-
 func Test_getDocumentCount_IT(t *testing.T) {
+	conStr := "mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/admin"
 	client, err := mongoHelper.Connect(conStr)
 	defer mongoHelper.CloseConnection(client)
 

@@ -31,6 +31,7 @@ func Test_getAllDatabasesOrPanic_1(t *testing.T) {
 }
 
 func Test_getAllDatabasesOrPanic_2_IT(t *testing.T) {
+	conStr := "mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/admin"
 	useDumps = false
 	client, err := mongoHelper.Connect(conStr)
 	defer mongoHelper.CloseConnection(client)
@@ -80,6 +81,7 @@ func Test_getAllCollectionsOrPanic_1(t *testing.T) {
 }
 
 func Test_getAllCollectionsOrPanic_2_IT(t *testing.T) {
+	conStr := "mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/admin"
 	useDumps = false
 	client, err := mongoHelper.Connect(conStr)
 	defer mongoHelper.CloseConnection(client)
