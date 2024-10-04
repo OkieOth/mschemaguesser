@@ -34,7 +34,6 @@ func Test_getAllDatabasesOrPanic_2_IT(t *testing.T) {
 	useDumps = false
 	client, err := mongoHelper.Connect(conStr)
 	defer mongoHelper.CloseConnection(client)
-
 	if err != nil {
 		t.Errorf("Failed to get client: %v", err)
 		return

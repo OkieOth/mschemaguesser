@@ -18,7 +18,7 @@ func CleanDirectory(dir string, includeDotFiles bool) error {
 	}
 
 	for _, file := range files {
-		if includeDotFiles && strings.HasPrefix(file.Name(), ".") {
+		if (!includeDotFiles) && strings.HasPrefix(file.Name(), ".") {
 			continue
 		}
 		filePath := filepath.Join(dir, file.Name())
@@ -45,7 +45,7 @@ func GetFilesInDir(dir string, includeDotFiles bool) ([]string, error) {
 		if file.IsDir() {
 			continue
 		}
-		if includeDotFiles && strings.HasPrefix(file.Name(), ".") {
+		if (!includeDotFiles) && strings.HasPrefix(file.Name(), ".") {
 			continue
 		}
 		ret = append(ret, file.Name())

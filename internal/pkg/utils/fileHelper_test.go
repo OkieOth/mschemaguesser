@@ -44,8 +44,8 @@ func Test_GetFilesInDir(t *testing.T) {
 			t.Errorf("Error (2) while getting file via GetFilesInDir: %v", err)
 			return false
 		}
-
 		expected := []string{"Test_GetFilesInDir_0.txt", "Test_GetFilesInDir_1.txt", "Test_GetFilesInDir_2.txt"}
+
 		lenExpected := len(expected)
 
 		if len(files) != lenExpected {
