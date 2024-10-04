@@ -1,0 +1,8 @@
+{
+  "version": "1.0.0",
+  "comment": "The file format is binary. Every entry consists of of a four byte field with the length of the following bson content and the mongo bson content itself",
+  "db": "dummy",
+  "collection": "c1",
+  "exportTime": "2024-10-04T14:33:16.632190689+02:00",
+  "itemCount": 4
+}

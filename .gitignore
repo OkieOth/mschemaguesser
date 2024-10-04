@@ -24,6 +24,7 @@ tmp.*
 *.tmp
 test.*
 tmp
+temp
 tmp_*
 mschemaguesser
 *.log
