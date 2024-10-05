@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"slices"
 
 	"okieoth/schemaguesser/internal/pkg/importHelper"
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
@@ -153,4 +154,16 @@ func getCollectionFromLocalFile(importFile string, callback mongoHelper.HandleDa
 		}
 	}
 	return nil
+}
+
+func removeBlacklisted(collections []string, blacklist []string) []string {
+	ret := make([]string, 0)
+	for _, c := range collections {
+		if slices.Contains(blacklist, c) {
+			log.Printf("Skip blacklisted collection: %s\n", c)
+			continue
+		}
+		ret = append(ret, c)
+	}
+	return ret
 }

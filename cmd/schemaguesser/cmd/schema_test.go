@@ -49,32 +49,34 @@ func Test_replaceUuidValues(t *testing.T) {
 	}
 }
 
-// func Test_printSchemaForAllDatabases_IT(t *testing.T) {
-// 	outputDir = "../../../temp"
-// 	defer utils.CleanDirectory(outputDir, false)
+func Test_printSchemaForAllDatabases_IT(t *testing.T) {
+	outputDir = "../../../temp"
+	defer utils.CleanDirectory(outputDir, false)
 
-// 	if !testhelper.ValidateEmptyDir(outputDir, t) {
-// 		return
-// 	}
+	if !testhelper.ValidateEmptyDir(outputDir, t) {
+		return
+	}
 
-// 	conStr := "mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/admin"
-// 	useDumps = false
-// 	client, err := mongoHelper.Connect(conStr)
-// 	defer mongoHelper.CloseConnection(client)
-// 	if err != nil {
-// 		t.Errorf("Failed to get client: %v", err)
-// 		return
-// 	}
+	conStr := "mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/admin"
+	useDumps = false
+	client, err := mongoHelper.Connect(conStr)
+	defer mongoHelper.CloseConnection(client)
+	if err != nil {
+		t.Errorf("Failed to get client: %v", err)
+		return
+	}
 
-// 	printSchemasForAllDatabases(client, false)
+	printSchemasForAllDatabases(client, false)
 
-// 	expected := []string{"dummy_c1.schema.json", "dummy_c2.schema.json"}
+	expected := []string{"admin_system_users.schema.json", "admin_system_version.schema.json",
+		"dummy_c1.schema.json", "dummy_c2.schema.json", "local_startup_log.schema.json"}
 
-// 	if !testhelper.ValidateExpectedFiles(outputDir, expected, t) {
-// 		return
-// 	}
-// 	_, _ = testhelper.CheckFilesNonZero(outputDir, expected, t)
-// }
+	if !testhelper.ValidateExpectedFiles(outputDir, expected, t) {
+		return
+	}
+	expected2 := []string{"dummy_c1.json", "dummy_c2.json"}
+	_, _ = testhelper.CheckFilesNonZero(outputDir, expected2, t)
+}
 
 func Test_printSchemaForOneCollection_IT(t *testing.T) {
 	outputDir = "../../../temp"

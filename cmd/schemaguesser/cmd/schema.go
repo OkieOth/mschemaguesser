@@ -108,24 +108,27 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 	}
 
 	bsonRaw := make([]bson.Raw, 0)
+	i := 0
 	err := queryCollection(client, dbName, collName, func(data bson.Raw) error {
+		i++
 		bsonRaw = append(bsonRaw, data)
 		return nil
 	})
 
-	if err != nil {
-		msg := fmt.Sprintf("Error while reading data for collection (%s.%s): \n%v\n", dbName, collName, err)
-		panic(msg)
-	}
-	startTime := time.Now()
-	for _, b := range bsonRaw {
-		err = mongoHelper.ProcessBson(b, collName, &mainType, &otherComplexTypes)
+	if i > 0 {
 		if err != nil {
-			log.Printf("Error while processing bson for schema: %v", err)
+			msg := fmt.Sprintf("Error while reading data for collection (%s.%s): \n%v\n", dbName, collName, err)
+			panic(msg)
 		}
-	}
-	log.Printf("[%s:%s] Mongodb data processed for collection in %v\n", dbName, collName, time.Since(startTime))
-	if len(bsonRaw) > 0 {
+		startTime := time.Now()
+		for _, b := range bsonRaw {
+			err = mongoHelper.ProcessBson(b, collName, &mainType, &otherComplexTypes)
+			if err != nil {
+				log.Printf("Error while processing bson for schema: %v", err)
+			}
+		}
+		log.Printf("[%s:%s] Mongodb data processed for collection in %v\n", dbName, collName, time.Since(startTime))
+
 		schema.ReduceTypes(&mainType, &otherComplexTypes)
 		//schema.GuessDicts(&otherComplexTypes)
 		schema.PrintSchema(dbName, collName, &mainType, &otherComplexTypes, outputDir)
@@ -137,19 +140,17 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 
 func printSchemasForAllCollections(client *mongo.Client, dbName string, initProgressBar bool) {
 	collections := getAllCollectionsOrPanic(client, dbName)
+	collections = removeBlacklisted(collections, blacklist)
 	var wg sync.WaitGroup
 	if initProgressBar {
 		progressbar.Init(int64(len(collections)), "Schema for all collections")
 	}
 
+	wg.Add(len(collections))
 	if includeCount {
 		wg.Add(len(collections))
 	}
 	for _, coll := range collections {
-		if slices.Contains(blacklist, coll) {
-			log.Printf("[%s:%s] skip blacklisted collection\n", dbName, coll)
-			continue
-		}
 		go func(s string) {
 			startTime := time.Now()
 			defer func() {

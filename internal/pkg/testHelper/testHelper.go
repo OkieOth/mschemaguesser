@@ -29,7 +29,7 @@ func ValidateExpectedFiles(dir string, expected []string, t *testing.T) bool {
 	for _, f := range expected {
 		if !slices.Contains(files, f) {
 			ret = false
-			t.Errorf("Expected file %s not found, expected files: %v", f, expected)
+			t.Errorf("Expected file %s not found, expected files: %v", f, files)
 		}
 	}
 	return ret
