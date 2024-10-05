@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
+	testhelper "okieoth/schemaguesser/internal/pkg/testHelper"
+	"okieoth/schemaguesser/internal/pkg/utils"
 )
 
 func Test_getDocumentCount_IT(t *testing.T) {
@@ -45,4 +47,90 @@ func Test_replaceUuidValues(t *testing.T) {
 		t.Errorf("Got wrong jsonString: expected: %s\ngot: %s", expected, convertedStr)
 		return
 	}
+}
+
+// func Test_printSchemaForAllDatabases_IT(t *testing.T) {
+// 	outputDir = "../../../temp"
+// 	defer utils.CleanDirectory(outputDir, false)
+
+// 	if !testhelper.ValidateEmptyDir(outputDir, t) {
+// 		return
+// 	}
+
+// 	conStr := "mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/admin"
+// 	useDumps = false
+// 	client, err := mongoHelper.Connect(conStr)
+// 	defer mongoHelper.CloseConnection(client)
+// 	if err != nil {
+// 		t.Errorf("Failed to get client: %v", err)
+// 		return
+// 	}
+
+// 	printSchemasForAllDatabases(client, false)
+
+// 	expected := []string{"dummy_c1.schema.json", "dummy_c2.schema.json"}
+
+// 	if !testhelper.ValidateExpectedFiles(outputDir, expected, t) {
+// 		return
+// 	}
+// 	_, _ = testhelper.CheckFilesNonZero(outputDir, expected, t)
+// }
+
+func Test_printSchemaForOneCollection_IT(t *testing.T) {
+	outputDir = "../../../temp"
+	defer utils.CleanDirectory(outputDir, false)
+
+	if !testhelper.ValidateEmptyDir(outputDir, t) {
+		return
+	}
+
+	_ = schemaForOneFileFromDb(t)
+}
+
+func schemaForOneFileFromDb(t *testing.T) bool {
+	conStr := "mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/admin"
+	useDumps = false
+	client, err := mongoHelper.Connect(conStr)
+	defer mongoHelper.CloseConnection(client)
+	if err != nil {
+		t.Errorf("Failed to get client: %v", err)
+		return false
+	}
+
+	printSchemaForOneCollection(client, "dummy", "c2", false, false)
+
+	expected := []string{"dummy_c2.schema.json"}
+
+	if !testhelper.ValidateExpectedFiles(outputDir, expected, t) {
+		return false
+	}
+	_, err = testhelper.CheckFilesNonZero(outputDir, expected, t)
+	return err == nil
+}
+
+func Test_printSchemaForAllCollections_IT(t *testing.T) {
+	outputDir = "../../../temp"
+	defer utils.CleanDirectory(outputDir, false)
+
+	if !testhelper.ValidateEmptyDir(outputDir, t) {
+		return
+	}
+
+	conStr := "mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/admin"
+	useDumps = false
+	client, err := mongoHelper.Connect(conStr)
+	defer mongoHelper.CloseConnection(client)
+	if err != nil {
+		t.Errorf("Failed to get client: %v", err)
+		return
+	}
+
+	printSchemasForAllCollections(client, "dummy", false)
+
+	expected := []string{"dummy_c1.schema.json", "dummy_c2.schema.json"}
+
+	if !testhelper.ValidateExpectedFiles(outputDir, expected, t) {
+		return
+	}
+	_, _ = testhelper.CheckFilesNonZero(outputDir, expected, t)
 }
