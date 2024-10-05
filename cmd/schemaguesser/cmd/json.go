@@ -132,7 +132,7 @@ func jsonForOneCollection(client *mongo.Client, dbName string, collName string, 
 	i := 0
 
 	utils.DumpBytesToFile([]byte("["), outputFile)
-	err = mongoHelper.QueryCollection(client, dbName, collName, int(itemCount), useAggregation, mongoV44, func(data bson.Raw) error {
+	err = queryCollection(client, dbName, collName, func(data bson.Raw) error {
 		bytes, err := getJsonBytes(&data)
 		if err != nil {
 			log.Printf("Error while converting to JSON: %v", err)
@@ -159,7 +159,7 @@ func jsonForOneCollection(client *mongo.Client, dbName string, collName string, 
 }
 
 func jsonForAllCollections(client *mongo.Client, dbName string, initProgressBar bool) {
-	collections := mongoHelper.ReadCollectionsOrPanic(client, dbName)
+	collections := getAllCollectionsOrPanic(client, dbName)
 	var wg sync.WaitGroup
 	if initProgressBar {
 		progressbar.Init(int64(len(collections)), "JSON export for all collections")
@@ -187,7 +187,7 @@ func jsonForAllCollections(client *mongo.Client, dbName string, initProgressBar 
 }
 
 func jsonForAllDatabases(client *mongo.Client, initProgressBar bool) {
-	dbs := mongoHelper.ReadDatabasesOrPanic(client)
+	dbs := getAllDatabasesOrPanic(client)
 	var wg sync.WaitGroup
 	if initProgressBar {
 		progressbar.Init(int64(len(dbs)), "JSON export for all databases")

@@ -1,11 +1,15 @@
 package cmd
 
 import (
+	"encoding/binary"
 	"fmt"
+	"io"
 	"log"
+	"os"
 
 	"okieoth/schemaguesser/internal/pkg/importHelper"
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
+	"okieoth/schemaguesser/internal/pkg/utils"
 
 	"github.com/spf13/cobra"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -102,4 +106,51 @@ func getAllCollectionsOrPanic(client *mongo.Client, dbName string) []string {
 		}
 		return mongoHelper.ReadCollectionsOrPanic(client, dbName)
 	}
+}
+
+func queryCollection(client *mongo.Client, dbName string, collName string, callback mongoHelper.HandleDataCallback) error {
+	if useDumps {
+		if dumpDir == "" {
+			panic(fmt.Sprintf("queryCollection - [%s:%s] no 'dump_dir' flag given, so no idea from where to get the data", dbName, collName))
+		}
+		importFile := utils.GetFileName(dumpDir, "bson", dbName, collName)
+		return getCollectionFromLocalFile(importFile, callback)
+	} else {
+		if client == nil {
+			panic("mongo client not initialized to query databases")
+		}
+		return mongoHelper.QueryCollection(client, dbName, collName, int(itemCount), useAggregation, mongoV44, callback)
+	}
+}
+
+func getCollectionFromLocalFile(importFile string, callback mongoHelper.HandleDataCallback) error {
+	file, err := os.Open(importFile)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %v", err)
+	}
+	defer file.Close()
+
+	buf := make([]byte, 4)
+	readCount := uint64(0)
+	for {
+		_, err := io.ReadFull(file, buf)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return fmt.Errorf("failed to read document size to buffer: %v, readCount: %d", err, readCount)
+		}
+		docLength := int32(binary.LittleEndian.Uint32(buf))
+		docBuf := make([]byte, docLength)
+		_, err = io.ReadFull(file, docBuf)
+		if err != nil {
+			return fmt.Errorf("failed to read document to buffer: %v, readCount: %d", err, readCount)
+		}
+		readCount++
+		err = callback(docBuf)
+		if err != nil {
+			return fmt.Errorf("failed to call callback: %v, readCount: %d", err, readCount)
+		}
+	}
+	return nil
 }

@@ -1,10 +1,15 @@
 package testhelper
 
 import (
-	"okieoth/schemaguesser/internal/pkg/utils"
+	"bytes"
+	"crypto/md5"
+	"fmt"
+	"io"
 	"os"
 	"slices"
 	"testing"
+
+	"okieoth/schemaguesser/internal/pkg/utils"
 )
 
 func ValidateExpectedFiles(dir string, expected []string, t *testing.T) bool {
@@ -70,4 +75,31 @@ func CheckFilesNonZero(dir string, filesToInclude []string, t *testing.T) (bool,
 	}
 
 	return ret, nil
+}
+
+func hashFileMD5(filePath string) ([]byte, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("could not open file %s: %w", filePath, err)
+	}
+	defer file.Close()
+
+	hash := md5.New()
+
+	if _, err := io.Copy(hash, file); err != nil {
+		return nil, fmt.Errorf("failed to calculate MD5 hash for file %s: %w", filePath, err)
+	}
+	return hash.Sum(nil), nil
+}
+
+func CompareTwoFiles(file1, file2 string) (bool, error) {
+	hash1, err := hashFileMD5(file1)
+	if err != nil {
+		return false, err
+	}
+	hash2, err := hashFileMD5(file2)
+	if err != nil {
+		return false, err
+	}
+	return bytes.Equal(hash1, hash2), nil
 }

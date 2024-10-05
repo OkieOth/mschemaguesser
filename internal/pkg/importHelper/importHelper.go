@@ -106,7 +106,7 @@ func ImportData(client *mongo.Client, importFile string, dbName string, collName
 		if err != nil {
 			return readCount, fmt.Errorf("failed to read document to buffer: %v", err)
 		}
-
+		readCount++
 		if chunkElemCount < uint64(chunkSize) {
 			docs = append(docs, docBuf)
 		} else {
@@ -118,10 +118,12 @@ func ImportData(client *mongo.Client, importFile string, dbName string, collName
 			docs = docs[:0]
 		}
 	}
+	if len(docs) > 0 {
+		err = insertChunk(docs, collection, ctx)
+		if err != nil {
+			return readCount, fmt.Errorf("failed to insert final chunk into db: %v", err)
+		}
 
-	err = insertChunk(docs, collection, ctx)
-	if err != nil {
-		return readCount, fmt.Errorf("failed to insert final chunk into db: %v", err)
 	}
 	log.Printf("[%s:%s] Imported %d documents", dbName, collName, readCount)
 	return readCount, nil
