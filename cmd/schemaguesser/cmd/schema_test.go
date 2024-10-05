@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
@@ -78,6 +80,27 @@ func Test_printSchemaForAllDatabases_IT(t *testing.T) {
 	_, _ = testhelper.CheckFilesNonZero(outputDir, expected2, t)
 }
 
+func Test_printSchemaForAllDatabases(t *testing.T) {
+	outputDir = "../../../temp"
+	defer utils.CleanDirectory(outputDir, false)
+
+	if !testhelper.ValidateEmptyDir(outputDir, t) {
+		return
+	}
+
+	useDumps = true
+	dumpDir = "../../../resources/bson"
+
+	printSchemasForAllDatabases(nil, false)
+
+	expected := []string{"dummy_c1.schema.json", "dummy_c2.schema.json"}
+
+	if !testhelper.ValidateExpectedFiles(outputDir, expected, t) {
+		return
+	}
+	_, _ = testhelper.CheckFilesNonZero(outputDir, expected, t)
+}
+
 func Test_printSchemaForOneCollection_IT(t *testing.T) {
 	outputDir = "../../../temp"
 	defer utils.CleanDirectory(outputDir, false)
@@ -87,6 +110,42 @@ func Test_printSchemaForOneCollection_IT(t *testing.T) {
 	}
 
 	_ = schemaForOneFileFromDb(t)
+}
+
+func Test_printSchemaForOneCollection2_IT(t *testing.T) {
+	outputDir = "../../../temp"
+	defer utils.CleanDirectory(outputDir, false)
+
+	if !testhelper.ValidateEmptyDir(outputDir, t) {
+		return
+	}
+
+	if !schemaForOneFileFromDb(t) {
+		return
+	}
+	newFileName := "dummy_c2_from_db.schema.json"
+	pathNewFileName := filepath.Join(outputDir, newFileName)
+	origFileName := "dummy_c2.schema.json"
+	pathOrigFileName := filepath.Join(outputDir, origFileName)
+	err := os.Rename(pathOrigFileName, pathNewFileName)
+	if err != nil {
+		t.Errorf("Error renaming test file (%s -> %s): %v", origFileName, newFileName, err)
+		return
+	}
+
+	useDumps = true
+	dumpDir = "../../../resources/bson"
+
+	printSchemaForOneCollection(nil, "dummy", "c2", false, false)
+
+	expected := []string{origFileName, newFileName}
+
+	if !testhelper.ValidateExpectedFiles(outputDir, expected, t) {
+		return
+	}
+	_, _ = testhelper.CheckFilesNonZero(outputDir, expected, t)
+
+	testhelper.CompareTwoFiles(pathNewFileName, pathOrigFileName)
 }
 
 func schemaForOneFileFromDb(t *testing.T) bool {
@@ -128,6 +187,27 @@ func Test_printSchemaForAllCollections_IT(t *testing.T) {
 	}
 
 	printSchemasForAllCollections(client, "dummy", false)
+
+	expected := []string{"dummy_c1.schema.json", "dummy_c2.schema.json"}
+
+	if !testhelper.ValidateExpectedFiles(outputDir, expected, t) {
+		return
+	}
+	_, _ = testhelper.CheckFilesNonZero(outputDir, expected, t)
+}
+
+func Test_printSchemaForAllCollections(t *testing.T) {
+	outputDir = "../../../temp"
+	defer utils.CleanDirectory(outputDir, false)
+
+	if !testhelper.ValidateEmptyDir(outputDir, t) {
+		return
+	}
+
+	useDumps = true
+	dumpDir = "../../../resources/bson"
+
+	printSchemasForAllCollections(nil, "dummy", false)
 
 	expected := []string{"dummy_c1.schema.json", "dummy_c2.schema.json"}
 

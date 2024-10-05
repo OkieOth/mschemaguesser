@@ -142,7 +142,7 @@ func Test_jsonForAllCollections(t *testing.T) {
 	_, _ = testhelper.CheckFilesNonZero(outputDir, expected, t)
 }
 
-func Test_jsonForOneCollection(t *testing.T) {
+func Test_jsonForOneCollection2_IT(t *testing.T) {
 	outputDir = "../../../temp"
 	defer utils.CleanDirectory(outputDir, false)
 
