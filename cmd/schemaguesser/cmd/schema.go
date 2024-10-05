@@ -108,7 +108,7 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 	}
 
 	bsonRaw := make([]bson.Raw, 0)
-	err := mongoHelper.QueryCollection(client, dbName, collName, int(itemCount), useAggregation, mongoV44, func(data bson.Raw) error {
+	err := queryCollection(client, dbName, collName, func(data bson.Raw) error {
 		bsonRaw = append(bsonRaw, data)
 		return nil
 	})
@@ -136,7 +136,7 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 }
 
 func printSchemasForAllCollections(client *mongo.Client, dbName string, initProgressBar bool) {
-	collections := mongoHelper.ReadCollectionsOrPanic(client, dbName)
+	collections := getAllCollectionsOrPanic(client, dbName)
 	var wg sync.WaitGroup
 	if initProgressBar {
 		progressbar.Init(int64(len(collections)), "Schema for all collections")
@@ -166,7 +166,7 @@ func printSchemasForAllCollections(client *mongo.Client, dbName string, initProg
 }
 
 func printSchemasForAllDatabases(client *mongo.Client, initProgressBar bool) {
-	dbs := mongoHelper.ReadDatabasesOrPanic(client)
+	dbs := getAllDatabasesOrPanic(client)
 	var wg sync.WaitGroup
 	if initProgressBar {
 		progressbar.Init(int64(len(dbs)), "Schema for all databases")
