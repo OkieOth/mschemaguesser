@@ -18,28 +18,28 @@ const OBJECT = "object"
 const INT = "integer"
 
 type ComplexType struct {
-	Name          string
-	LongName      string
-	Properties    []BasicElemInfo
-	IsDictionary  bool
-	DictValueType string
-	UsedKeys      []string
-	TypeReduced   bool
-	Comments      []string
-	Count         ot.Optional[int64]
-	IsKey         ot.Optional[bool]
+	Name          string             `json:"name,omitempty"`
+	LongName      string             `json:"longName,omitempty"`
+	Properties    []BasicElemInfo    `json:"properties,omitempty"`
+	IsDictionary  bool               `json:"isDictionary,omitempty"`
+	DictValueType string             `json:"dictValueType,omitempty"`
+	UsedKeys      []string           `json:"usedKeys,omitempty"`
+	TypeReduced   bool               `json:"typeReduced,omitempty"`
+	Comments      []string           `json:"comments,omitempty"`
+	Count         ot.Optional[int64] `json:"count,omitempty"`
+	IsKey         ot.Optional[bool]  `json:"isKey,omitempty"`
 }
 
 type BasicElemInfo struct {
-	AttribName      string
-	ValueType       string
-	BsonType        string
-	Format          string
-	IsArray         bool
-	ArrayDimensions uint
-	Comment         string
-	IsComplex       bool
-	Comments        []string
+	AttribName      string   `json:"attribName,omitempty"`
+	ValueType       string   `json:"valueType,omitempty"`
+	BsonType        string   `json:"bsonType,omitempty"`
+	Format          string   `json:"format,omitempty"`
+	IsArray         bool     `json:"isArray,omitempty"`
+	ArrayDimensions uint     `json:"arrayDimensions,omitempty"`
+	Comment         string   `json:"comment,omitempty"`
+	IsComplex       bool     `json:"isComplex,omitempty"`
+	Comments        []string `json:"comments,omitempty"`
 }
 
 func GetNewTypeName(name string, otherComplexTypes *[]ComplexType) string {

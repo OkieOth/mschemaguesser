@@ -1,6 +1,6 @@
 package schema
 
-var templateStr = `
+var schemaTemplateStr = `
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "{{ .MainType.Name }}",

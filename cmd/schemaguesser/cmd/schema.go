@@ -48,12 +48,16 @@ var persistKeyValuesDir string
 var keyUuid bool
 var keyUuidString bool
 var useZeroKeyUuid bool
+var persistSchemaBase bool
+var writePlantUml bool
 
 func init() {
 	schemaCmd.Flags().BoolVar(&includeCount, "include_count", false, "If set it includes the current number of elements of the collection into schema comments")
 	schemaCmd.Flags().BoolVar(&commentPotentialKeyFields, "key_fields", false, "If set it annotates potential key fields in the schema with a comment. Without additional flags only the fields of type 'objectId' are considered as keys")
 	schemaCmd.Flags().BoolVar(&persistKeyValues, "persist_key_values", false, "If set the unique key values are extracted from the sample data and stored in separate files")
 	schemaCmd.Flags().StringVar(&persistKeyValuesDir, "key_values_dir", "", "Optional output dir to store the files with the key values. If 'persist_key_values' is set and this flag is empty, then the output dir is used")
+	schemaCmd.Flags().BoolVar(&persistSchemaBase, "persist_internal_schema_base", false, "If set then then the internal structure to detect the schemas is persisted too. This information is needed to search later for model dependencies over multiple collections")
+	schemaCmd.Flags().BoolVar(&writePlantUml, "plantuml", false, "If set then a plantuml class diagram for the type is exported too")
 
 	schemaCmd.Flags().BoolVar(&keyUuid, "uuid_keys", false, "If set, binary uuid fields are considered as key, too")
 	schemaCmd.Flags().BoolVar(&keyUuid, "uuid_str_keys", false, "If set, uuids in string format (e.g. '056bcf58-e17e-42ba-8186-f25ffbde8b35') are considered as key, too")
@@ -132,6 +136,12 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 		schema.ReduceTypes(&mainType, &otherComplexTypes)
 		//schema.GuessDicts(&otherComplexTypes)
 		schema.PrintSchema(dbName, collName, &mainType, &otherComplexTypes, outputDir)
+		if persistSchemaBase {
+			schema.PersistSchemaBase(dbName, collName, &mainType, &otherComplexTypes, outputDir)
+		}
+		if writePlantUml {
+			schema.WritePlantUml(dbName, collName, &mainType, &otherComplexTypes, outputDir)
+		}
 		log.Printf("[%s:%s] Schema printed in %v\n", dbName, collName, time.Since(startTime))
 	} else {
 		log.Printf("No data for database: %s, collection: %s\n", dbName, collName)

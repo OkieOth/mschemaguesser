@@ -11,6 +11,19 @@ import (
 	"unicode"
 )
 
+type TypeRelation struct {
+	Start string
+	End   string
+}
+
+type PumlTemplateInput struct {
+	Database          string
+	Collection        string
+	MainType          *mongoHelper.ComplexType
+	Relations         []TypeRelation
+	OtherComplexTypes []mongoHelper.ComplexType
+}
+
 type TemplateInput struct {
 	Database          string
 	Collection        string
@@ -270,16 +283,6 @@ func GuessDicts(otherComplexTypes *[]mongoHelper.ComplexType) {
 }
 
 func PrintSchema(database string, collection string, mainType *mongoHelper.ComplexType, otherComplexTypes *[]mongoHelper.ComplexType, outputDir string) {
-	// // for debugging reasons
-	// tmplFile := "json_schema.tmpl"
-	// tmpl := template.Must(template.New("json_schema.tmpl").Funcs(template.FuncMap{
-	// 	"LastIndexProps": lastIndexProps, "LastIndexTypes": lastIndexTypes,
-	// }).ParseFiles("resources/" + tmplFile))
-
-	tmpl := template.Must(template.New("json_schema.tmpl").Funcs(template.FuncMap{
-		"LastIndexProps": lastIndexProps, "LastIndexTypes": lastIndexTypes,
-	}).Parse(templateStr))
-
 	input := TemplateInput{
 		MainType:          mainType,
 		OtherComplexTypes: *otherComplexTypes,
@@ -287,6 +290,58 @@ func PrintSchema(database string, collection string, mainType *mongoHelper.Compl
 
 		Collection: collection,
 	}
+	printTemplateBase("schema.tmpl", schemaTemplateStr, "schema.json", database, collection, &input, outputDir)
+}
+
+func PersistSchemaBase(database string, collection string, mainType *mongoHelper.ComplexType, otherComplexTypes *[]mongoHelper.ComplexType, outputDir string) {
+	// TODO
+	// tmpl := template.Must(template.New("json_schema.tmpl").Funcs(template.FuncMap{
+	// 	"LastIndexProps": lastIndexProps, "LastIndexTypes": lastIndexTypes,
+	// }).Parse(templateStr))
+
+	// input := TemplateInput{
+	// 	MainType:          mainType,
+	// 	OtherComplexTypes: *otherComplexTypes,
+	// 	Database:          database,
+
+	// 	Collection: collection,
+	// }
+
+	// if outputDir == "stdout" {
+	// 	err := tmpl.Execute(os.Stdout, input)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// } else {
+	// 	outputFile, err := utils.CreateOutputFile(outputDir, "schema.json", database, collection)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	defer outputFile.Close()
+	// 	err = tmpl.Execute(outputFile, input)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// }
+}
+
+func WritePlantUml(database string, collection string, mainType *mongoHelper.ComplexType, otherComplexTypes *[]mongoHelper.ComplexType, outputDir string) {
+	typeRelations := make([]TypeRelation, 0)
+	// TODO
+	input := PumlTemplateInput{
+		MainType:          mainType,
+		OtherComplexTypes: *otherComplexTypes,
+		Relations:         typeRelations,
+		Database:          database,
+		Collection:        collection,
+	}
+	printTemplateBase("plantuml.tmpl", pumlTemplateStr, "schema.puml", database, collection, &input, outputDir)
+}
+
+func printTemplateBase(templateName string, templateStr string, fileExt string, database string, collection string, input *interface{}, outputDir string) {
+	tmpl := template.Must(template.New(templateName).Funcs(template.FuncMap{
+		"LastIndexProps": lastIndexProps, "LastIndexTypes": lastIndexTypes,
+	}).Parse(templateStr))
 
 	if outputDir == "stdout" {
 		err := tmpl.Execute(os.Stdout, input)
@@ -294,7 +349,7 @@ func PrintSchema(database string, collection string, mainType *mongoHelper.Compl
 			panic(err)
 		}
 	} else {
-		outputFile, err := utils.CreateOutputFile(outputDir, "schema.json", database, collection)
+		outputFile, err := utils.CreateOutputFile(outputDir, fileExt, database, collection)
 		if err != nil {
 			panic(err)
 		}
