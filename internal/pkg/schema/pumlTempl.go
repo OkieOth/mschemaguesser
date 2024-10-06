@@ -3,16 +3,20 @@ package schema
 var pumlTemplateStr = `
 @startuml
 title Storage model for database: {{ .Database }}, collection: {{ .Collection }}\n\n
+hide empty methods
 
 footer Created with https://github.com/OkieOth/mschemaguesser
 
-{{if gt (len .MainType.Comments) 0}}
-
-class {{ .MainType.Name }} {
-
+class "**{{ .MainType.Name }}**" as {{ .MainType.Name }} #FFFFFF {
+  {{ range $index, $prop := .MainType.Properties -}}
+  {{- $prop.AttribName }}: {{ $prop.ValueType }}
+  {{- if $prop.IsArray }}[]{{ end }}
+  {{- if not $prop.IsComplex }}<color:grey>    // {{ $prop.BsonType }}</color>{{ end }}
+  {{ end -}}
 }
 
-note top of {{ . MainType.Name }} 
+{{if gt (len .MainType.Comments) 0}}
+note top of {{ .MainType.Name }} 
     {{range .MainType.Comments}}
 {{.}}
     {{end}}
@@ -21,12 +25,18 @@ end note
 
 {{ $lastIndexOthers := LastIndexTypes .OtherComplexTypes -}}
 {{- range $index, $type := .OtherComplexTypes -}}
-class {{ $type.Name }} {
-}{{ if ne $index $lastIndexOthers }},{{ end }}
+class "**{{ $type.Name }}**" as {{ $type.Name }} #FFFFFF {
+  {{ range $index, $prop := $type.Properties -}}
+  {{- $prop.AttribName }}: {{ $prop.ValueType }}
+  {{- if $prop.IsArray }}[]{{ end }} 
+  {{- if not $prop.IsComplex }}<color:grey>    // {{ $prop.BsonType }}</color>{{ end }}
+  {{ end -}}
+}
+
 {{ end }}
 
 {{- range $index, $type := .Relations -}}
-  $type.Start o- $type.End
+  {{ $type.Start }} o-- {{ $type.End }}
 {{ end }}
 
 @enduml

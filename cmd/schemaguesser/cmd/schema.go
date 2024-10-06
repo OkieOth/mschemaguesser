@@ -57,7 +57,7 @@ func init() {
 	schemaCmd.Flags().BoolVar(&persistKeyValues, "persist_key_values", false, "If set the unique key values are extracted from the sample data and stored in separate files")
 	schemaCmd.Flags().StringVar(&persistKeyValuesDir, "key_values_dir", "", "Optional output dir to store the files with the key values. If 'persist_key_values' is set and this flag is empty, then the output dir is used")
 	schemaCmd.Flags().BoolVar(&persistSchemaBase, "persist_internal_schema_base", false, "If set then then the internal structure to detect the schemas is persisted too. This information is needed to search later for model dependencies over multiple collections")
-	schemaCmd.Flags().BoolVar(&writePlantUml, "plantuml", false, "If set then a plantuml class diagram for the type is exported too")
+	schemaCmd.Flags().BoolVar(&writePlantUml, "print_puml", false, "If set then a plantuml class diagram for the type is exported too")
 
 	schemaCmd.Flags().BoolVar(&keyUuid, "uuid_keys", false, "If set, binary uuid fields are considered as key, too")
 	schemaCmd.Flags().BoolVar(&keyUuid, "uuid_str_keys", false, "If set, uuids in string format (e.g. '056bcf58-e17e-42ba-8186-f25ffbde8b35') are considered as key, too")

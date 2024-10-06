@@ -7,6 +7,7 @@ import (
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
 	"okieoth/schemaguesser/internal/pkg/utils"
 	"os"
+	"slices"
 	"text/template"
 	"unicode"
 )
@@ -14,6 +15,13 @@ import (
 type TypeRelation struct {
 	Start string
 	End   string
+}
+
+func NewTypeRelation(start string, end string) TypeRelation {
+	return TypeRelation{
+		Start: start,
+		End:   end,
+	}
 }
 
 type PumlTemplateInput struct {
@@ -327,7 +335,24 @@ func PersistSchemaBase(database string, collection string, mainType *mongoHelper
 
 func WritePlantUml(database string, collection string, mainType *mongoHelper.ComplexType, otherComplexTypes *[]mongoHelper.ComplexType, outputDir string) {
 	typeRelations := make([]TypeRelation, 0)
-	// TODO
+	for _, e := range mainType.Properties {
+		if (e.IsComplex) && (!slices.ContainsFunc(typeRelations, func(v TypeRelation) bool {
+			return (v.Start == mainType.Name) && (v.End == e.ValueType)
+		})) {
+			typeRelations = append(typeRelations, NewTypeRelation(mainType.Name, e.ValueType))
+		}
+	}
+
+	for _, eo := range *otherComplexTypes {
+		for _, ep := range eo.Properties {
+			if (ep.IsComplex) && (!slices.ContainsFunc(typeRelations, func(v TypeRelation) bool {
+				return (v.Start == eo.Name) && (v.End == ep.ValueType)
+			})) {
+				typeRelations = append(typeRelations, NewTypeRelation(eo.Name, ep.ValueType))
+			}
+		}
+	}
+
 	input := PumlTemplateInput{
 		MainType:          mainType,
 		OtherComplexTypes: *otherComplexTypes,
@@ -338,7 +363,7 @@ func WritePlantUml(database string, collection string, mainType *mongoHelper.Com
 	printTemplateBase("plantuml.tmpl", pumlTemplateStr, "schema.puml", database, collection, &input, outputDir)
 }
 
-func printTemplateBase(templateName string, templateStr string, fileExt string, database string, collection string, input *interface{}, outputDir string) {
+func printTemplateBase(templateName string, templateStr string, fileExt string, database string, collection string, input interface{}, outputDir string) {
 	tmpl := template.Must(template.New(templateName).Funcs(template.FuncMap{
 		"LastIndexProps": lastIndexProps, "LastIndexTypes": lastIndexTypes,
 	}).Parse(templateStr))
