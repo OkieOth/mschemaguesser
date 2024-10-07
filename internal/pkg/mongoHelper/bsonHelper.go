@@ -17,6 +17,11 @@ const STRING = "string"
 const OBJECT = "object"
 const INT = "integer"
 
+type SchemaRaw struct {
+	MainType          *ComplexType   `json:"mainType"`
+	OtherComplexTypes *[]ComplexType `json:"otherComplexTypes,omitempty"`
+}
+
 type ComplexType struct {
 	Name          string             `json:"name,omitempty"`
 	LongName      string             `json:"longName,omitempty"`
@@ -42,9 +47,9 @@ type BasicElemInfo struct {
 	Comments        []string `json:"comments,omitempty"`
 }
 
-func GetNewTypeName(name string, otherComplexTypes *[]ComplexType) string {
+func GetNewTypeName(name string, otherComplexTypes []ComplexType) string {
 	f := func(s string) bool {
-		for _, c := range *otherComplexTypes {
+		for _, c := range otherComplexTypes {
 			if c.Name == s {
 				return true
 			}
@@ -73,30 +78,30 @@ func firstUpperCase(s string) string {
 	return result
 }
 
-func addNewOtherComplexType(otherComplexTypes *[]ComplexType, complexType ComplexType) {
-	for i, e := range *otherComplexTypes {
+func addNewOtherComplexType(otherComplexTypes []ComplexType, complexType ComplexType) []ComplexType {
+	for i, e := range otherComplexTypes {
 		if e.LongName == complexType.LongName {
-			(*otherComplexTypes)[i] = complexType
-			return
+			otherComplexTypes[i] = complexType
+			return otherComplexTypes
 		}
 	}
-	*otherComplexTypes = append(*otherComplexTypes, complexType)
+	return append(otherComplexTypes, complexType)
 }
 
-func addNewProperty(properties *[]BasicElemInfo, prop BasicElemInfo) {
-	for i, e := range *properties {
+func addNewProperty(properties []BasicElemInfo, prop BasicElemInfo) []BasicElemInfo {
+	for i, e := range properties {
 		if e.AttribName == prop.AttribName {
-			(*properties)[i] = prop
-			return
+			properties[i] = prop
+			return properties
 		}
 	}
-	*properties = append(*properties, prop)
+	return append(properties, prop)
 }
 
-func getAlreadyStoredType(otherComplexTypes *[]ComplexType, typeName string) (ComplexType, bool) {
-	for i, e := range *otherComplexTypes {
+func getAlreadyStoredType(otherComplexTypes []ComplexType, typeName string) (ComplexType, bool) {
+	for i, e := range otherComplexTypes {
 		if e.LongName == typeName {
-			return (*otherComplexTypes)[i], true
+			return otherComplexTypes[i], true
 		}
 	}
 	return ComplexType{}, false
@@ -115,7 +120,7 @@ func isBasicType(elem bson.RawElement) bool {
 	return !((elem.Value().Type == bson.TypeArray) || (elem.Value().Type == bson.TypeEmbeddedDocument))
 }
 
-func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, otherComplexTypes *[]ComplexType) error {
+func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, otherComplexTypes []ComplexType) error {
 	if mainType == nil {
 		return errors.New("no mainType given")
 	}
@@ -158,7 +163,7 @@ func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, oth
 			}
 			typeInfo.ValueType = newTypeName
 			handleTypeEmbeddedDocument(elem, &typeInfo, &newSchemaType, otherComplexTypes, newTypeName, true)
-			addNewOtherComplexType(otherComplexTypes, newSchemaType)
+			otherComplexTypes = addNewOtherComplexType(otherComplexTypes, newSchemaType)
 		case bson.TypeArray:
 			handleTypeArray(elem, &typeInfo, otherComplexTypes, mainType.Name)
 		case bson.TypeBinary:
@@ -196,7 +201,7 @@ func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, oth
 		case bson.TypeMaxKey:
 			handleTypeMaxKey(elem, &typeInfo)
 		}
-		addNewProperty(&mainType.Properties, typeInfo)
+		mainType.Properties = addNewProperty(mainType.Properties, typeInfo)
 	}
 	return nil
 }
@@ -211,7 +216,7 @@ func handleTypeDouble(elem bson.RawElement, typeInfo *BasicElemInfo) {
 	typeInfo.BsonType = "double"
 }
 
-func handleTypeEmbeddedDocument(elem bson.RawElement, typeInfo *BasicElemInfo, schemaType *ComplexType, otherComplexTypes *[]ComplexType, prefix string, addToOtherSchemas bool) {
+func handleTypeEmbeddedDocument(elem bson.RawElement, typeInfo *BasicElemInfo, schemaType *ComplexType, otherComplexTypes []ComplexType, prefix string, addToOtherSchemas bool) {
 	typeInfo.BsonType = "embeddedDocument - unofficial type"
 	typeInfo.IsComplex = true
 
@@ -246,7 +251,7 @@ func handleTypeEmbeddedDocument(elem bson.RawElement, typeInfo *BasicElemInfo, s
 				}
 				typeInfo.ValueType = newTypeName
 				handleTypeEmbeddedDocument(elem, &typeInfo, &newSchemaType, otherComplexTypes, schemaType.Name, true)
-				addNewOtherComplexType(otherComplexTypes, newSchemaType)
+				otherComplexTypes = addNewOtherComplexType(otherComplexTypes, newSchemaType)
 			case bson.TypeArray:
 				handleTypeArray(elem, &typeInfo, otherComplexTypes, schemaType.Name)
 			case bson.TypeBinary:
@@ -284,13 +289,13 @@ func handleTypeEmbeddedDocument(elem bson.RawElement, typeInfo *BasicElemInfo, s
 			case bson.TypeMaxKey:
 				handleTypeMaxKey(elem, &typeInfo)
 			}
-			addNewProperty(&schemaType.Properties, typeInfo)
+			schemaType.Properties = addNewProperty(schemaType.Properties, typeInfo)
 
 		}
 	}
 }
 
-func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplexTypes *[]ComplexType, prefix string) {
+func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplexTypes []ComplexType, prefix string) {
 	arrayRaw := bson.Raw(elem.Value().Value)
 
 	typeInfo.IsArray = true
@@ -331,7 +336,7 @@ func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplex
 				}
 				typeInfo.ValueType = newTypeName
 				handleTypeEmbeddedDocument(elem, typeInfo, &newSchemaType, otherComplexTypes, newTypeName, true)
-				addNewOtherComplexType(otherComplexTypes, newSchemaType)
+				otherComplexTypes = addNewOtherComplexType(otherComplexTypes, newSchemaType)
 				complexArrayType = newSchemaType
 			case bson.TypeArray:
 				handleTypeArray(elem, typeInfo, otherComplexTypes, newTypeName)

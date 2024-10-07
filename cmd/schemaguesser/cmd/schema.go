@@ -56,7 +56,7 @@ func init() {
 	schemaCmd.Flags().BoolVar(&commentPotentialKeyFields, "key_fields", false, "If set it annotates potential key fields in the schema with a comment. Without additional flags only the fields of type 'objectId' are considered as keys")
 	schemaCmd.Flags().BoolVar(&persistKeyValues, "persist_key_values", false, "If set the unique key values are extracted from the sample data and stored in separate files")
 	schemaCmd.Flags().StringVar(&persistKeyValuesDir, "key_values_dir", "", "Optional output dir to store the files with the key values. If 'persist_key_values' is set and this flag is empty, then the output dir is used")
-	schemaCmd.Flags().BoolVar(&persistSchemaBase, "persist_internal_schema_base", false, "If set then then the internal structure to detect the schemas is persisted too. This information is needed to search later for model dependencies over multiple collections")
+	schemaCmd.Flags().BoolVar(&persistSchemaBase, "print_raw_schema_base", false, "If set then then the internal structure to detect the schemas is persisted too. This information is needed to search later for model dependencies over multiple collections")
 	schemaCmd.Flags().BoolVar(&writePlantUml, "print_puml", false, "If set then a plantuml class diagram for the type is exported too")
 
 	schemaCmd.Flags().BoolVar(&keyUuid, "uuid_keys", false, "If set, binary uuid fields are considered as key, too")
@@ -126,21 +126,23 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 		}
 		startTime := time.Now()
 		for _, b := range bsonRaw {
-			err = mongoHelper.ProcessBson(b, collName, &mainType, &otherComplexTypes)
+			err = mongoHelper.ProcessBson(b, collName, &mainType, otherComplexTypes)
 			if err != nil {
 				log.Printf("Error while processing bson for schema: %v", err)
 			}
 		}
 		log.Printf("[%s:%s] Mongodb data processed for collection in %v\n", dbName, collName, time.Since(startTime))
 
-		schema.ReduceTypes(&mainType, &otherComplexTypes)
-		//schema.GuessDicts(&otherComplexTypes)
-		schema.PrintSchema(dbName, collName, &mainType, &otherComplexTypes, outputDir)
+		schema.ReduceTypes(&mainType, otherComplexTypes)
+		otherComplexTypes = schema.GuessDicts(otherComplexTypes)
+		// ... after identifying dicts, we still can have double types
+		schema.ReduceTypes(&mainType, otherComplexTypes)
+		schema.PrintSchema(dbName, collName, &mainType, otherComplexTypes, outputDir)
 		if persistSchemaBase {
-			schema.PersistSchemaBase(dbName, collName, &mainType, &otherComplexTypes, outputDir)
+			schema.PersistSchemaBase(dbName, collName, &mainType, otherComplexTypes, outputDir)
 		}
 		if writePlantUml {
-			schema.WritePlantUml(dbName, collName, &mainType, &otherComplexTypes, outputDir)
+			schema.WritePlantUml(dbName, collName, &mainType, otherComplexTypes, outputDir)
 		}
 		log.Printf("[%s:%s] Schema printed in %v\n", dbName, collName, time.Since(startTime))
 	} else {

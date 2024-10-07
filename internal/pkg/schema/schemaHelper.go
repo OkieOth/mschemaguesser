@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -47,9 +48,9 @@ func lastIndexTypes(array []mongoHelper.ComplexType) int {
 	return len(array) - 1
 }
 
-func getComplexTypeByName(name string, otherComplexTypes *[]mongoHelper.ComplexType) (*mongoHelper.ComplexType, error) {
+func getComplexTypeByName(name string, otherComplexTypes []mongoHelper.ComplexType) (*mongoHelper.ComplexType, error) {
 	var complexType mongoHelper.ComplexType
-	for _, e := range *otherComplexTypes {
+	for _, e := range otherComplexTypes {
 		if e.Name == name {
 			complexType = e
 			return &complexType, nil
@@ -67,7 +68,7 @@ func containsProp(propName string, t *mongoHelper.ComplexType) bool {
 	return false
 }
 
-func complexTypesAreNotTheSame(lastTypeInst *mongoHelper.ComplexType, currentTypeInfo *mongoHelper.BasicElemInfo, otherComplexTypes *[]mongoHelper.ComplexType) bool {
+func complexTypesAreNotTheSame(lastTypeInst *mongoHelper.ComplexType, currentTypeInfo *mongoHelper.BasicElemInfo, otherComplexTypes []mongoHelper.ComplexType) bool {
 	currentTypeInst, err := getComplexTypeByName(currentTypeInfo.ValueType, otherComplexTypes)
 	if err != nil {
 		fmt.Sprintf("Error while try to resolve name to complex type: %v\n", err)
@@ -88,7 +89,7 @@ func complexTypesAreNotTheSame(lastTypeInst *mongoHelper.ComplexType, currentTyp
 	}
 }
 
-func checkForSameTypesOfAllProps(complexType mongoHelper.ComplexType, otherComplexTypes *[]mongoHelper.ComplexType) bool {
+func checkForSameTypesOfAllProps_old(complexType mongoHelper.ComplexType, otherComplexTypes []mongoHelper.ComplexType) bool {
 	var lastType string
 	var lastTypeInst *mongoHelper.ComplexType
 	var err error
@@ -118,8 +119,26 @@ func checkForSameTypesOfAllProps(complexType mongoHelper.ComplexType, otherCompl
 	return true
 }
 
-func notInTypesToRemove(typeName string, typesToRemove *[]string) bool {
-	for _, t := range *typesToRemove {
+func checkForSameTypesOfAllProps(complexType mongoHelper.ComplexType, otherComplexTypes []mongoHelper.ComplexType) bool {
+	var lastType string
+	for _, p := range complexType.Properties {
+		if !p.IsComplex {
+			return false
+		}
+		if lastType == "" {
+			lastType = p.ValueType
+		} else {
+			if lastType != p.ValueType {
+				// properties have different types
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func notInTypesToRemove(typeName string, typesToRemove []string) bool {
+	for _, t := range typesToRemove {
 		if t == typeName {
 			return false
 		}
@@ -127,7 +146,7 @@ func notInTypesToRemove(typeName string, typesToRemove *[]string) bool {
 	return true
 }
 
-func containsPropWithSameType(propToFind *mongoHelper.BasicElemInfo, t *mongoHelper.ComplexType, otherComplexTypes *[]mongoHelper.ComplexType) bool {
+func containsPropWithSameType(propToFind *mongoHelper.BasicElemInfo, t *mongoHelper.ComplexType, otherComplexTypes []mongoHelper.ComplexType) bool {
 	var c1 *mongoHelper.ComplexType
 	var err error
 	if propToFind.IsComplex {
@@ -166,7 +185,7 @@ func containsPropWithSameType(propToFind *mongoHelper.BasicElemInfo, t *mongoHel
 	return false
 }
 
-func typesAreEqual(t1, t2 *mongoHelper.ComplexType, otherComplexTypes *[]mongoHelper.ComplexType) bool {
+func typesAreEqual(t1, t2 *mongoHelper.ComplexType, otherComplexTypes []mongoHelper.ComplexType) bool {
 	for _, p := range t1.Properties {
 		if !containsPropWithSameType(&p, t2, otherComplexTypes) {
 			return false
@@ -175,11 +194,11 @@ func typesAreEqual(t1, t2 *mongoHelper.ComplexType, otherComplexTypes *[]mongoHe
 	return true
 }
 
-func replaceAllTypeReferences(typeNameToReplace string, typeNameReplacement string, otherComplexTypes *[]mongoHelper.ComplexType, mainType *mongoHelper.ComplexType) {
-	for i, t := range *otherComplexTypes {
+func replaceAllTypeReferences(typeNameToReplace string, typeNameReplacement string, otherComplexTypes []mongoHelper.ComplexType, mainType *mongoHelper.ComplexType) {
+	for i, t := range otherComplexTypes {
 		for j, p := range t.Properties {
 			if p.ValueType == typeNameToReplace {
-				(*otherComplexTypes)[i].Properties[j].ValueType = typeNameReplacement
+				(otherComplexTypes)[i].Properties[j].ValueType = typeNameReplacement
 			}
 		}
 	}
@@ -190,14 +209,14 @@ func replaceAllTypeReferences(typeNameToReplace string, typeNameReplacement stri
 	}
 }
 
-func removeUnneededTypes(typesToRemove *[]string, otherComplexTypes *[]mongoHelper.ComplexType, mainType *mongoHelper.ComplexType) *[]mongoHelper.ComplexType {
+func removeUnneededTypes(typesToRemove []string, otherComplexTypes []mongoHelper.ComplexType, mainType *mongoHelper.ComplexType) []mongoHelper.ComplexType {
 	var ret []mongoHelper.ComplexType
-	for _, t := range *otherComplexTypes {
+	for _, t := range otherComplexTypes {
 		if notInTypesToRemove(t.Name, typesToRemove) {
 			ret = append(ret, t)
 		}
 	}
-	return removeDigitsFromTypeNames(mainType, &ret)
+	return removeDigitsFromTypeNames(mainType, ret)
 }
 
 func removeTrailingDigits(name string) string {
@@ -212,20 +231,20 @@ func removeTrailingDigits(name string) string {
 	return string(runes)
 }
 
-func removeDigitsFromTypeNames(mainType *mongoHelper.ComplexType, complexTypes *[]mongoHelper.ComplexType) *[]mongoHelper.ComplexType {
-	for i, t := range *complexTypes {
+func removeDigitsFromTypeNames(mainType *mongoHelper.ComplexType, complexTypes []mongoHelper.ComplexType) []mongoHelper.ComplexType {
+	for i, t := range complexTypes {
 		trimmedName := removeTrailingDigits(t.Name)
 		if trimmedName == "" {
 			trimmedName = mongoHelper.GetNewTypeName("Type", complexTypes)
 		}
 		if trimmedName != t.Name {
-			for j, ct := range *complexTypes {
+			for j, ct := range complexTypes {
 				if ct.Name == t.Name {
 					continue
 				}
 				for k, p := range ct.Properties {
 					if p.ValueType == t.Name {
-						(*complexTypes)[j].Properties[k].ValueType = trimmedName
+						complexTypes[j].Properties[k].ValueType = trimmedName
 					}
 				}
 			}
@@ -234,38 +253,37 @@ func removeDigitsFromTypeNames(mainType *mongoHelper.ComplexType, complexTypes *
 					mainType.Properties[k].ValueType = trimmedName
 				}
 			}
-			(*complexTypes)[i].Name = trimmedName
+			complexTypes[i].Name = trimmedName
 		}
 	}
 	return complexTypes
 }
 
-func ReduceTypes(mainType *mongoHelper.ComplexType, otherComplexTypes *[]mongoHelper.ComplexType) {
+func ReduceTypes(mainType *mongoHelper.ComplexType, otherComplexTypes []mongoHelper.ComplexType) {
 	var typesToRemove []string
-	for i, e1 := range *otherComplexTypes {
+	for i, e1 := range otherComplexTypes {
 		if e1.TypeReduced {
 			continue
 		}
-		for j, e2 := range (*otherComplexTypes)[i+1:] {
+		for j, e2 := range otherComplexTypes[i+1:] {
 			if e2.TypeReduced {
 				continue
 			}
 			if typesAreEqual(&e1, &e2, otherComplexTypes) {
 				typesToRemove = append(typesToRemove, e2.Name)
-				(*otherComplexTypes)[i+j+1].TypeReduced = true
+				otherComplexTypes[i+j+1].TypeReduced = true
 				replaceAllTypeReferences(e2.Name, e1.Name, otherComplexTypes, mainType)
 			}
 		}
 	}
-	*otherComplexTypes = *removeUnneededTypes(&typesToRemove, otherComplexTypes, mainType)
+	removeUnneededTypes(typesToRemove, otherComplexTypes, mainType)
 }
 
-func GuessDicts(otherComplexTypes *[]mongoHelper.ComplexType) {
+func GuessDicts(otherComplexTypes []mongoHelper.ComplexType) []mongoHelper.ComplexType {
 	var typesToRemove []string
-	for _, e := range *otherComplexTypes {
-		if len(e.Properties) < 15 {
-			continue
-		}
+	for i := range otherComplexTypes {
+		// for i := 0; i < len(*otherComplexTypes); i++ {
+		e := otherComplexTypes[i]
 		if checkForSameTypesOfAllProps(e, otherComplexTypes) {
 			var typeNameToUse string
 			for i, p := range e.Properties {
@@ -276,24 +294,24 @@ func GuessDicts(otherComplexTypes *[]mongoHelper.ComplexType) {
 					typesToRemove = append(typesToRemove, p.ValueType)
 				}
 			}
-			e.Properties = make([]mongoHelper.BasicElemInfo, 0)
-			e.IsDictionary = true
-			e.DictValueType = typeNameToUse
+			otherComplexTypes[i].Properties = make([]mongoHelper.BasicElemInfo, 0)
+			otherComplexTypes[i].IsDictionary = true
+			otherComplexTypes[i].DictValueType = typeNameToUse
 		}
 	}
 	var ret []mongoHelper.ComplexType
-	for _, t := range *otherComplexTypes {
-		if notInTypesToRemove(t.Name, &typesToRemove) {
+	for _, t := range otherComplexTypes {
+		if notInTypesToRemove(t.Name, typesToRemove) {
 			ret = append(ret, t)
 		}
 	}
-	*otherComplexTypes = ret
+	return ret
 }
 
-func PrintSchema(database string, collection string, mainType *mongoHelper.ComplexType, otherComplexTypes *[]mongoHelper.ComplexType, outputDir string) {
+func PrintSchema(database string, collection string, mainType *mongoHelper.ComplexType, otherComplexTypes []mongoHelper.ComplexType, outputDir string) {
 	input := TemplateInput{
 		MainType:          mainType,
-		OtherComplexTypes: *otherComplexTypes,
+		OtherComplexTypes: otherComplexTypes,
 		Database:          database,
 
 		Collection: collection,
@@ -301,39 +319,34 @@ func PrintSchema(database string, collection string, mainType *mongoHelper.Compl
 	printTemplateBase("schema.tmpl", schemaTemplateStr, "schema.json", database, collection, &input, outputDir)
 }
 
-func PersistSchemaBase(database string, collection string, mainType *mongoHelper.ComplexType, otherComplexTypes *[]mongoHelper.ComplexType, outputDir string) {
-	// TODO
-	// tmpl := template.Must(template.New("json_schema.tmpl").Funcs(template.FuncMap{
-	// 	"LastIndexProps": lastIndexProps, "LastIndexTypes": lastIndexTypes,
-	// }).Parse(templateStr))
+func PersistSchemaBase(database string, collection string, mainType *mongoHelper.ComplexType, otherComplexTypes []mongoHelper.ComplexType, outputDir string) {
+	schemaRaw := mongoHelper.SchemaRaw{
+		MainType:          mainType,
+		OtherComplexTypes: &otherComplexTypes,
+	}
 
-	// input := TemplateInput{
-	// 	MainType:          mainType,
-	// 	OtherComplexTypes: *otherComplexTypes,
-	// 	Database:          database,
+	jsonData, err := json.MarshalIndent(schemaRaw, "", "  ")
+	if err != nil {
+		log.Printf("[%s:%s] error, failed to marshall schema raw data: %v", database, collection, err)
+	}
 
-	// 	Collection: collection,
-	// }
+	if outputDir == "stdout" {
+		fmt.Println(jsonData)
+	} else {
+		outputFile, err := utils.CreateOutputFile(outputDir, "schema-raw.json", database, collection)
+		if err != nil {
+			panic(err)
+		}
+		defer outputFile.Close()
 
-	// if outputDir == "stdout" {
-	// 	err := tmpl.Execute(os.Stdout, input)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// } else {
-	// 	outputFile, err := utils.CreateOutputFile(outputDir, "schema.json", database, collection)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// 	defer outputFile.Close()
-	// 	err = tmpl.Execute(outputFile, input)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// }
+		_, err = outputFile.Write(jsonData)
+		if err != nil {
+			log.Printf("[%s:%s] error, failed to write schema raw data to file: %v", database, collection, err)
+		}
+	}
 }
 
-func WritePlantUml(database string, collection string, mainType *mongoHelper.ComplexType, otherComplexTypes *[]mongoHelper.ComplexType, outputDir string) {
+func WritePlantUml(database string, collection string, mainType *mongoHelper.ComplexType, otherComplexTypes []mongoHelper.ComplexType, outputDir string) {
 	typeRelations := make([]TypeRelation, 0)
 	for _, e := range mainType.Properties {
 		if (e.IsComplex) && (!slices.ContainsFunc(typeRelations, func(v TypeRelation) bool {
@@ -343,7 +356,7 @@ func WritePlantUml(database string, collection string, mainType *mongoHelper.Com
 		}
 	}
 
-	for _, eo := range *otherComplexTypes {
+	for _, eo := range otherComplexTypes {
 		for _, ep := range eo.Properties {
 			if (ep.IsComplex) && (!slices.ContainsFunc(typeRelations, func(v TypeRelation) bool {
 				return (v.Start == eo.Name) && (v.End == ep.ValueType)
@@ -355,7 +368,7 @@ func WritePlantUml(database string, collection string, mainType *mongoHelper.Com
 
 	input := PumlTemplateInput{
 		MainType:          mainType,
-		OtherComplexTypes: *otherComplexTypes,
+		OtherComplexTypes: otherComplexTypes,
 		Relations:         typeRelations,
 		Database:          database,
 		Collection:        collection,
