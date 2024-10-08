@@ -186,12 +186,20 @@ func containsPropWithSameType(propToFind *mongoHelper.BasicElemInfo, t *mongoHel
 }
 
 func typesAreEqual(t1, t2 *mongoHelper.ComplexType, otherComplexTypes []mongoHelper.ComplexType) bool {
-	for _, p := range t1.Properties {
-		if !containsPropWithSameType(&p, t2, otherComplexTypes) {
+	if t1.IsDictionary && t2.IsDictionary {
+		return t1.DictValueType == t2.DictValueType
+	} else {
+		if t1.IsDictionary || t2.IsDictionary {
 			return false
+		} else {
+			for _, p := range t1.Properties {
+				if !containsPropWithSameType(&p, t2, otherComplexTypes) {
+					return false
+				}
+			}
+			return true
 		}
 	}
-	return true
 }
 
 func replaceAllTypeReferences(typeNameToReplace string, typeNameReplacement string, otherComplexTypes []mongoHelper.ComplexType, mainType *mongoHelper.ComplexType) {
@@ -259,7 +267,7 @@ func removeDigitsFromTypeNames(mainType *mongoHelper.ComplexType, complexTypes [
 	return complexTypes
 }
 
-func ReduceTypes(mainType *mongoHelper.ComplexType, otherComplexTypes []mongoHelper.ComplexType) {
+func ReduceTypes(mainType *mongoHelper.ComplexType, otherComplexTypes []mongoHelper.ComplexType) []mongoHelper.ComplexType {
 	var typesToRemove []string
 	for i, e1 := range otherComplexTypes {
 		if e1.TypeReduced {
@@ -276,13 +284,12 @@ func ReduceTypes(mainType *mongoHelper.ComplexType, otherComplexTypes []mongoHel
 			}
 		}
 	}
-	removeUnneededTypes(typesToRemove, otherComplexTypes, mainType)
+	return removeUnneededTypes(typesToRemove, otherComplexTypes, mainType)
 }
 
 func GuessDicts(otherComplexTypes []mongoHelper.ComplexType) []mongoHelper.ComplexType {
 	var typesToRemove []string
 	for i := range otherComplexTypes {
-		// for i := 0; i < len(*otherComplexTypes); i++ {
 		e := otherComplexTypes[i]
 		if checkForSameTypesOfAllProps(e, otherComplexTypes) {
 			var typeNameToUse string
@@ -291,7 +298,9 @@ func GuessDicts(otherComplexTypes []mongoHelper.ComplexType) []mongoHelper.Compl
 				if i == 0 {
 					typeNameToUse = p.ValueType
 				} else {
-					typesToRemove = append(typesToRemove, p.ValueType)
+					if p.ValueType != typeNameToUse {
+						typesToRemove = append(typesToRemove, p.ValueType)
+					}
 				}
 			}
 			otherComplexTypes[i].Properties = make([]mongoHelper.BasicElemInfo, 0)

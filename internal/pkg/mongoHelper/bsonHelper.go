@@ -120,17 +120,17 @@ func isBasicType(elem bson.RawElement) bool {
 	return !((elem.Value().Type == bson.TypeArray) || (elem.Value().Type == bson.TypeEmbeddedDocument))
 }
 
-func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, otherComplexTypes []ComplexType) error {
+func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, otherComplexTypes []ComplexType) ([]ComplexType, error) {
 	if mainType == nil {
-		return errors.New("no mainType given")
+		return otherComplexTypes, errors.New("no mainType given")
 	}
 	if otherComplexTypes == nil {
-		return errors.New("no otherComplexTypes given")
+		return otherComplexTypes, errors.New("no otherComplexTypes given")
 	}
 	elements, err := doc.Elements()
 	if err != nil {
 		log.Printf("Error while parsing bson elements: %v", err)
-		return err
+		return otherComplexTypes, err
 	}
 	if mainType.Name == "" {
 		colNameFirstUpper := firstUpperCase(collectionName)
@@ -162,10 +162,10 @@ func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, oth
 				newTypeName = newSchemaType.Name
 			}
 			typeInfo.ValueType = newTypeName
-			handleTypeEmbeddedDocument(elem, &typeInfo, &newSchemaType, otherComplexTypes, newTypeName, true)
+			otherComplexTypes = handleTypeEmbeddedDocument(elem, &typeInfo, &newSchemaType, otherComplexTypes, newTypeName, true)
 			otherComplexTypes = addNewOtherComplexType(otherComplexTypes, newSchemaType)
 		case bson.TypeArray:
-			handleTypeArray(elem, &typeInfo, otherComplexTypes, mainType.Name)
+			otherComplexTypes = handleTypeArray(elem, &typeInfo, otherComplexTypes, mainType.Name)
 		case bson.TypeBinary:
 			handleTypeBinary(elem, &typeInfo)
 		case bson.TypeUndefined:
@@ -203,7 +203,7 @@ func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, oth
 		}
 		mainType.Properties = addNewProperty(mainType.Properties, typeInfo)
 	}
-	return nil
+	return otherComplexTypes, nil
 }
 
 func handleTypeString(elem bson.RawElement, typeInfo *BasicElemInfo) {
@@ -216,7 +216,7 @@ func handleTypeDouble(elem bson.RawElement, typeInfo *BasicElemInfo) {
 	typeInfo.BsonType = "double"
 }
 
-func handleTypeEmbeddedDocument(elem bson.RawElement, typeInfo *BasicElemInfo, schemaType *ComplexType, otherComplexTypes []ComplexType, prefix string, addToOtherSchemas bool) {
+func handleTypeEmbeddedDocument(elem bson.RawElement, typeInfo *BasicElemInfo, schemaType *ComplexType, otherComplexTypes []ComplexType, prefix string, addToOtherSchemas bool) []ComplexType {
 	typeInfo.BsonType = "embeddedDocument - unofficial type"
 	typeInfo.IsComplex = true
 
@@ -250,10 +250,10 @@ func handleTypeEmbeddedDocument(elem bson.RawElement, typeInfo *BasicElemInfo, s
 					newSchemaType.Name = newTypeName
 				}
 				typeInfo.ValueType = newTypeName
-				handleTypeEmbeddedDocument(elem, &typeInfo, &newSchemaType, otherComplexTypes, schemaType.Name, true)
+				otherComplexTypes = handleTypeEmbeddedDocument(elem, &typeInfo, &newSchemaType, otherComplexTypes, schemaType.Name, true)
 				otherComplexTypes = addNewOtherComplexType(otherComplexTypes, newSchemaType)
 			case bson.TypeArray:
-				handleTypeArray(elem, &typeInfo, otherComplexTypes, schemaType.Name)
+				otherComplexTypes = handleTypeArray(elem, &typeInfo, otherComplexTypes, schemaType.Name)
 			case bson.TypeBinary:
 				handleTypeBinary(elem, &typeInfo)
 			case bson.TypeUndefined:
@@ -290,12 +290,12 @@ func handleTypeEmbeddedDocument(elem bson.RawElement, typeInfo *BasicElemInfo, s
 				handleTypeMaxKey(elem, &typeInfo)
 			}
 			schemaType.Properties = addNewProperty(schemaType.Properties, typeInfo)
-
 		}
 	}
+	return otherComplexTypes
 }
 
-func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplexTypes []ComplexType, prefix string) {
+func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplexTypes []ComplexType, prefix string) []ComplexType {
 	arrayRaw := bson.Raw(elem.Value().Value)
 
 	typeInfo.IsArray = true
@@ -309,7 +309,7 @@ func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplex
 	if err != nil {
 		typeInfo.Comment = fmt.Sprintf("error while parsing array type: %v", err)
 		typeInfo.BsonType = "array type - unofficial type"
-		return
+		return otherComplexTypes
 	}
 
 	var lastType *bsontype.Type
@@ -318,7 +318,7 @@ func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplex
 		if (lastType != nil) && (*lastType != elem.Value().Type) {
 			typeInfo.Comment = "array type consists of different types, multiple type arrays are not supported"
 			typeInfo.BsonType = "array type - unofficial type"
-			return
+			return otherComplexTypes
 		}
 
 		if lastType == nil {
@@ -335,11 +335,11 @@ func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplex
 					newSchemaType.Name = newTypeName
 				}
 				typeInfo.ValueType = newTypeName
-				handleTypeEmbeddedDocument(elem, typeInfo, &newSchemaType, otherComplexTypes, newTypeName, true)
+				otherComplexTypes = handleTypeEmbeddedDocument(elem, typeInfo, &newSchemaType, otherComplexTypes, newTypeName, true)
 				otherComplexTypes = addNewOtherComplexType(otherComplexTypes, newSchemaType)
 				complexArrayType = newSchemaType
 			case bson.TypeArray:
-				handleTypeArray(elem, typeInfo, otherComplexTypes, newTypeName)
+				otherComplexTypes = handleTypeArray(elem, typeInfo, otherComplexTypes, newTypeName)
 			case bson.TypeBinary:
 				handleTypeBinary(elem, typeInfo)
 			case bson.TypeUndefined:
@@ -378,12 +378,11 @@ func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplex
 		} else {
 			// only complex types needs to be reviewed for additional attributes
 			if elem.Value().Type == bson.TypeEmbeddedDocument {
-				handleTypeEmbeddedDocument(elem, typeInfo, &complexArrayType, otherComplexTypes, newTypeName, true)
+				otherComplexTypes = handleTypeEmbeddedDocument(elem, typeInfo, &complexArrayType, otherComplexTypes, newTypeName, true)
 			}
-
 		}
 	}
-
+	return otherComplexTypes
 }
 
 func handleTypeBinary(elem bson.RawElement, typeInfo *BasicElemInfo) {

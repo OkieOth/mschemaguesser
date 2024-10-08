@@ -104,7 +104,7 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 		descr := fmt.Sprintf("Schema for %s:%s", dbName, collName)
 		progressbar.Init(1, descr)
 	}
-	var otherComplexTypes []mongoHelper.ComplexType
+	otherComplexTypes := make([]mongoHelper.ComplexType, 0)
 	var mainType mongoHelper.ComplexType
 
 	if includeCount {
@@ -121,22 +121,22 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 
 	if i > 0 {
 		if err != nil {
-			msg := fmt.Sprintf("Error while reading data for collection (%s.%s): \n%v\n", dbName, collName, err)
+			msg := fmt.Sprintf("Error while reading data of collection (%s.%s): \n%v\n", dbName, collName, err)
 			panic(msg)
 		}
 		startTime := time.Now()
 		for _, b := range bsonRaw {
-			err = mongoHelper.ProcessBson(b, collName, &mainType, otherComplexTypes)
+			otherComplexTypes, err = mongoHelper.ProcessBson(b, collName, &mainType, otherComplexTypes)
 			if err != nil {
 				log.Printf("Error while processing bson for schema: %v", err)
 			}
 		}
 		log.Printf("[%s:%s] Mongodb data processed for collection in %v\n", dbName, collName, time.Since(startTime))
 
-		schema.ReduceTypes(&mainType, otherComplexTypes)
+		otherComplexTypes = schema.ReduceTypes(&mainType, otherComplexTypes)
 		otherComplexTypes = schema.GuessDicts(otherComplexTypes)
 		// ... after identifying dicts, we still can have double types
-		schema.ReduceTypes(&mainType, otherComplexTypes)
+		otherComplexTypes = schema.ReduceTypes(&mainType, otherComplexTypes)
 		schema.PrintSchema(dbName, collName, &mainType, otherComplexTypes, outputDir)
 		if persistSchemaBase {
 			schema.PersistSchemaBase(dbName, collName, &mainType, otherComplexTypes, outputDir)

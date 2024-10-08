@@ -79,3 +79,63 @@ func Test_GetFilesInDir(t *testing.T) {
 	validateEmptyDir()
 
 }
+
+func Test_PrepareDirStructureGetFilesInDir(t *testing.T) {
+	testDir := "../../../temp"
+	defer RemoveDirectory(filepath.Join(testDir, "testDb"))
+
+	path := filepath.Join(testDir, "testDb")
+	exist, err := DirExists(path)
+	if err != nil {
+		t.Errorf("Error while checking patch (%s): %v", path, err)
+		return
+	}
+	if exist {
+		t.Errorf("Directory already exist: %s", path)
+		return
+	}
+
+	path2 := filepath.Join(testDir, filepath.Join("testDb", "coll1"))
+	exist, err = DirExists(path2)
+
+	if err != nil {
+		t.Errorf("Error while checking path (%s): %v", path2, err)
+		return
+	}
+	if exist {
+		t.Errorf("Directory already exist: %s", path2)
+		return
+	}
+
+	p1, err := PrepareDirStructure(testDir, "testDb", "coll1")
+
+	if err != nil {
+		t.Errorf("Error while prepare dir structure (%s): %v", p1, err)
+		return
+	}
+	if p1 != path2 {
+		t.Errorf("Created path is different than the expected: got: %s, expected: %s", p1, path2)
+		return
+	}
+
+	exist, err = DirExists(path)
+	if err != nil {
+		t.Errorf("Error while checking patch-2 (%s): %v", path, err)
+		return
+	}
+	if !exist {
+		t.Errorf("Directory doesn't exist (2): %s", path)
+		return
+	}
+
+	p2, err := PrepareDirStructure(testDir, "testDb", "coll1")
+
+	if err != nil {
+		t.Errorf("Error while prepare dir structure (%s): %v", p1, err)
+		return
+	}
+	if p2 != p1 {
+		t.Errorf("Created path is different than the expected: got: %s, expected: %s", p2, p1)
+		return
+	}
+}

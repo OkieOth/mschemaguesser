@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -51,4 +52,41 @@ func GetFilesInDir(dir string, includeDotFiles bool) ([]string, error) {
 		ret = append(ret, file.Name())
 	}
 	return ret, nil
+}
+
+func DirExists(path string) (bool, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return info.IsDir(), nil
+}
+
+func RemoveDirectory(path string) {
+	if exist, err := DirExists(path); err != nil {
+		log.Printf("Error while checking for directory (%s) existence: %v", path, err)
+	} else {
+		if exist {
+			err := os.RemoveAll(path)
+			if err != nil {
+				log.Printf("Error while deleting directory (%s) existence: %v", path, err)
+			}
+		}
+	}
+}
+
+func PrepareDirStructure(outputDir string, dbName string, collName string) (string, error) {
+	dbSanitized := Sanitize(dbName)
+	collSanitized := Sanitize(collName)
+	dirPath := filepath.Join(outputDir, filepath.Join(dbSanitized, collSanitized))
+	if exist, err := DirExists(dirPath); err != nil {
+		return dirPath, err
+	} else if !exist {
+		err := os.MkdirAll(dirPath, 0755)
+		return dirPath, err
+	}
+	return dirPath, nil
 }

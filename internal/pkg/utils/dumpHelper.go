@@ -9,14 +9,14 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func sanitize(input string) string {
+func Sanitize(input string) string {
 	re := regexp.MustCompile(`[^a-zA-Z0-9-]`)
 	return re.ReplaceAllString(input, "_")
 }
 
 func GetFileName(dir string, fileExt string, dbName string, colName string) string {
-	safeDbName := sanitize(dbName)
-	safeColName := sanitize(colName)
+	safeDbName := Sanitize(dbName)
+	safeColName := Sanitize(colName)
 	return filepath.Join(dir, fmt.Sprintf("%s_%s.%s", safeDbName, safeColName, fileExt))
 }
 
