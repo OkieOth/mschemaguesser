@@ -78,10 +78,14 @@ func RemoveDirectory(path string) {
 	}
 }
 
-func PrepareDirStructure(outputDir string, dbName string, collName string) (string, error) {
+func GetKeyPersistenceDirName(outputDir string, dbName string, collName string) string {
 	dbSanitized := Sanitize(dbName)
 	collSanitized := Sanitize(collName)
-	dirPath := filepath.Join(outputDir, filepath.Join(dbSanitized, collSanitized))
+	return filepath.Join(outputDir, filepath.Join(dbSanitized, collSanitized))
+}
+
+func PrepareDirStructure(outputDir string, dbName string, collName string) (string, error) {
+	dirPath := GetKeyPersistenceDirName(outputDir, dbName, collName)
 	if exist, err := DirExists(dirPath); err != nil {
 		return dirPath, err
 	} else if !exist {

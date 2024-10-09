@@ -139,3 +139,55 @@ func Test_PrepareDirStructureGetFilesInDir(t *testing.T) {
 		return
 	}
 }
+
+func TestGetKeyPersistenceDirName(t *testing.T) {
+	outputDir := "/base/output"
+
+	// Define test cases
+	tests := []struct {
+		dbName   string
+		collName string
+		expected string
+	}{
+		{
+			dbName:   "myDB",
+			collName: "myCollection",
+			expected: filepath.Join(outputDir, "myDB", "myCollection"),
+		},
+		{
+			dbName:   "my DB",    // space in dbName
+			collName: "coll@123", // special chars in collName
+			expected: filepath.Join(outputDir, "my_DB", "coll_123"),
+		},
+		{
+			dbName:   "dbWithÜnicode", // non-ASCII character in dbName
+			collName: "normalColl",
+			expected: filepath.Join(outputDir, "dbWith_nicode", "normalColl"),
+		},
+		{
+			dbName:   " ", // dbName with only a space
+			collName: "collection",
+			expected: filepath.Join(outputDir, "_", "collection"),
+		},
+		{
+			dbName:   "name$with#special&chars!", // multiple special characters in dbName
+			collName: "coll$chars",
+			expected: filepath.Join(outputDir, "name_with_special_chars_", "coll_chars"),
+		},
+		{
+			dbName:   "123中文", // non-ASCII and numeric characters
+			collName: "coll_測試",
+			expected: filepath.Join(outputDir, "123__", "coll___"),
+		},
+	}
+
+	// Run tests
+	for _, test := range tests {
+		t.Run(test.dbName+"_"+test.collName, func(t *testing.T) {
+			result := GetKeyPersistenceDirName(outputDir, test.dbName, test.collName)
+			if result != test.expected {
+				t.Errorf("Expected %s, but got %s", test.expected, result)
+			}
+		})
+	}
+}

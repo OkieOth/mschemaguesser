@@ -146,6 +146,7 @@ func ProcessBson(doc bson.Raw, collectionName string, mainType *ComplexType, oth
 		typeInfo.AttribName = elem.Key()
 		switch elem.Value().Type {
 		case bson.TypeString:
+			log.Printf("Dummy: %s", elem.Value().StringValue())
 			handleTypeString(elem, &typeInfo)
 		case bson.TypeDouble:
 			handleTypeDouble(elem, &typeInfo)
