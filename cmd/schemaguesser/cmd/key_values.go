@@ -13,8 +13,6 @@ import (
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
 	"okieoth/schemaguesser/internal/pkg/progressbar"
 
-	"okieoth/schemaguesser/internal/pkg/utils"
-
 	"github.com/spf13/cobra"
 )
 
@@ -44,13 +42,13 @@ var keyValuesCmd = &cobra.Command{
 }
 
 func keyValuesForOneCollection(client *mongo.Client, dbName string, collName string, doRecover bool, initProgressBar bool) {
-	defer func() {
-		if doRecover {
-			if r := recover(); r != nil {
-				log.Printf("Recovered while handling collection (db: %s, collection: %s): %v", dbName, collName, r)
-			}
-		}
-	}()
+	// defer func() {
+	// 	if doRecover {
+	// 		if r := recover(); r != nil {
+	// 			log.Printf("Recovered while handling collection (db: %s, collection: %s): %v", dbName, collName, r)
+	// 		}
+	// 	}
+	// }()
 	if initProgressBar {
 		descr := fmt.Sprintf("JSON export of %s:%s", dbName, collName)
 		progressbar.Init(1, descr)
@@ -69,7 +67,6 @@ func keyValuesForOneCollection(client *mongo.Client, dbName string, collName str
 			panic(msg)
 		}
 		startTime := time.Now()
-		utils.PrepareDirStructure(outputDir, dbName, collName)
 
 		for _, b := range bsonRaw {
 			mongoHelper.ScanBsonForKeyValues(b, dbName, collName, outputDir)
@@ -106,7 +103,7 @@ func keyValuesForAllCollections(client *mongo.Client, dbName string, initProgres
 					progressbar.ProgressOne()
 				}
 			}()
-			jsonForOneCollection(client, dbName, s, true, false)
+			keyValuesForOneCollection(client, dbName, s, true, false)
 		}(coll)
 	}
 	wg.Wait()

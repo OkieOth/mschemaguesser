@@ -313,16 +313,18 @@ func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplex
 		return otherComplexTypes
 	}
 
-	var lastType *bsontype.Type
+	var lastType bsontype.Type
+	lastTypeSet := false
 	var complexArrayType ComplexType
 	for _, elem := range elements {
-		if (lastType != nil) && (*lastType != elem.Value().Type) {
+		if (lastTypeSet) && (lastType != elem.Value().Type) {
 			typeInfo.Comment = "array type consists of different types, multiple type arrays are not supported"
 			typeInfo.BsonType = "array type - unofficial type"
 			return otherComplexTypes
 		}
 
-		if lastType == nil {
+		if !lastTypeSet {
+			lastTypeSet = true
 			switch elem.Value().Type {
 			case bson.TypeString:
 				handleTypeString(elem, typeInfo)
@@ -377,6 +379,8 @@ func handleTypeArray(elem bson.RawElement, typeInfo *BasicElemInfo, otherComplex
 				handleTypeMaxKey(elem, typeInfo)
 			}
 		} else {
+			lastType = elem.Value().Type
+
 			// only complex types needs to be reviewed for additional attributes
 			if elem.Value().Type == bson.TypeEmbeddedDocument {
 				otherComplexTypes = handleTypeEmbeddedDocument(elem, typeInfo, &complexArrayType, otherComplexTypes, newTypeName, true)

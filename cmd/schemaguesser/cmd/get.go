@@ -50,6 +50,7 @@ func init() {
 	getCmd.AddCommand(schemaCmd)
 	getCmd.AddCommand(bsonCmd)
 	getCmd.AddCommand(jsonCmd)
+	getCmd.AddCommand(keyValuesCmd)
 
 	getCmd.PersistentFlags().StringVarP(&databaseName, "database", "d", "all", "Database to query existing collections")
 

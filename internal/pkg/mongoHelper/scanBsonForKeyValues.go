@@ -4,10 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"okieoth/schemaguesser/internal/pkg/meta"
 	"okieoth/schemaguesser/internal/pkg/utils"
+	"os"
 	"path/filepath"
 	"regexp"
 
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/bsontype"
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
@@ -56,28 +59,60 @@ func GetPersistenceFileName(outputDir string, dbName string, collName string, at
 	return filepath.Join(dirName, fmt.Sprintf("%s.keyvalues.txt", sanitizedAttribName))
 }
 
-func persistStringValue(value bson.RawValue, dbName string, collName string, attribName string, outputDir string) error {
-	// construct the related file name
-	// stringify the value
-	// write to the file
-	return nil // TODO
+func persistStringValue(value bson.RawValue, dbName string, collName string, attribName string, outputFile *os.File) error {
+	strValue := value.StringValue()
+	return persistString(strValue, dbName, collName, attribName, outputFile)
 }
 
-func persistBinaryValue(value bson.RawValue, dbName string, collName string, attribName string, outputDir string) error {
-	return nil // TODO
+func persistString(strValue string, dbName string, collName string, attribName string, outputFile *os.File) error {
+	sanitizedAttribName := utils.Sanitize(attribName)
+	_, err := outputFile.Write([]byte(sanitizedAttribName))
+	if err != nil {
+		return fmt.Errorf("[%s:%s - %s] Error while writing attrib name: %v", dbName, collName, attribName, err)
+	}
+	_, err = outputFile.Write([]byte(": "))
+	if err != nil {
+		return fmt.Errorf("[%s:%s - %s] Error while writing separator: %v", dbName, collName, attribName, err)
+	}
+	_, err = outputFile.Write([]byte(strValue))
+	if err != nil {
+		return fmt.Errorf("[%s:%s - %s] Error while writing value: %v", dbName, collName, attribName, err)
+	}
+	_, err = outputFile.Write([]byte("\n"))
+	if err != nil {
+		return fmt.Errorf("[%s:%s - %s] Error while writing last new line: %v", dbName, collName, attribName, err)
+	}
+	return nil
 }
 
-func persistObjectIdValue(value bson.RawValue, dbName string, collName string, attribName string, outputDir string) error {
-	return nil // TODO
+func persistBinaryValue(value bson.RawValue, dbName string, collName string, attribName string, outputFile *os.File) error {
+	subtype, binary := value.Binary()
+
+	if subtype == 4 || subtype == 3 {
+		uuidValue, err := uuid.FromBytes(binary)
+		if err != nil {
+			return fmt.Errorf("[%s:%s - %s] Error converting binary to UUID: %v", dbName, collName, attribName, err)
+		}
+		err = persistString(uuidValue.String(), dbName, collName, attribName, outputFile)
+		if err != nil {
+			log.Printf("[%s:%s - %s] Error while writing string value (%v): %v", dbName, collName, attribName, value, err)
+			return err
+		}
+	}
+	return nil
 }
 
-func handleStringKeyValue(value bson.RawValue, dbName string, collName string, attribName string, outputDir string) error {
+func persistObjectIdValue(value bson.RawValue, dbName string, collName string, attribName string, outputFile *os.File) error {
+	return persistString(value.StringValue(), dbName, collName, attribName, outputFile)
+}
+
+func handleStringKeyValue(value bson.RawValue, dbName string, collName string, attribName string, outputFile *os.File) error {
 	if b, err := checkIfStringIsUUIDString(value); err != nil {
 		log.Printf("Error while checking string value (%v) for uuid format: %v", value, err)
 		return err
 	} else {
 		if b {
-			err := persistStringValue(value, dbName, collName, attribName, outputDir)
+			err := persistStringValue(value, dbName, collName, attribName, outputFile)
 			if err != nil {
 				log.Printf("[%s:%s - %s] Error while writing string value (%v): %v", dbName, collName, attribName, value, err)
 				return err
@@ -87,12 +122,12 @@ func handleStringKeyValue(value bson.RawValue, dbName string, collName string, a
 	return nil
 }
 
-func handleUuidKeyValue(value bson.RawValue, dbName string, collName string, attribName string, outputDir string) error {
+func handleUuidKeyValue(value bson.RawValue, dbName string, collName string, attribName string, outputFile *os.File) error {
 	if b, err := checkIfBinaryIsUUID(value); err != nil {
 		log.Printf("Error while checking value (%v) for being uuid: %v", value, err)
 	} else {
 		if b {
-			err := persistBinaryValue(value, dbName, collName, attribName, outputDir)
+			err := persistBinaryValue(value, dbName, collName, attribName, outputFile)
 			if err != nil {
 				log.Printf("[%s:%s - %s] Error while writing string value (%v): %v", dbName, collName, attribName, value, err)
 			}
@@ -101,41 +136,43 @@ func handleUuidKeyValue(value bson.RawValue, dbName string, collName string, att
 	return nil
 }
 
-func handleTypeArrayKeyValues(value bson.RawValue, dbName string, collName string, attribName string, outputDir string) error {
+func handleTypeArrayKeyValues(value bson.RawValue, dbName string, collName string, attribName string, outputFile *os.File) error {
 	arrayRaw := bson.Raw(value.Value)
 	elements, err := arrayRaw.Elements()
 	if err != nil {
 		return err
 	}
 
-	var lastType *bsontype.Type
+	var lastType bsontype.Type
+	lastTypeSet := false
 	for _, elem := range elements {
-		if (lastType != nil) && (*lastType != elem.Value().Type) {
+		if (lastTypeSet) && (lastType != elem.Value().Type) {
 			return errors.New(fmt.Sprintf("[%s:%s - %s] array type consists of different types, multiple type arrays are not supported", dbName, collName))
 		} else {
-			if lastType == nil {
-				*lastType = elem.Value().Type
+			if !lastTypeSet {
+				lastType = elem.Value().Type
 			}
 		}
+		lastType = elem.Value().Type
 		switch elem.Value().Type {
 		case bson.TypeString:
-			if err := handleStringKeyValue(value, dbName, collName, attribName, outputDir); err != nil {
+			if err := handleStringKeyValue(value, dbName, collName, attribName, outputFile); err != nil {
 				log.Printf("[%s:%s - %s] error while persisting string key value: %v", dbName, collName, attribName, err)
 			}
 		case bson.TypeEmbeddedDocument:
-			if err := handleComplexTypeKeyValues(value, dbName, collName, attribName+"_sub", outputDir); err != nil {
+			if err := handleComplexTypeKeyValues(value, dbName, collName, attribName+"_sub", outputFile); err != nil {
 				log.Printf("[%s:%s - %s] error while persisting array key values: %v", dbName, collName, attribName, err)
 			}
 		case bson.TypeArray:
-			if err := handleTypeArrayKeyValues(value, dbName, collName, attribName+"_sub", outputDir); err != nil {
+			if err := handleTypeArrayKeyValues(value, dbName, collName, attribName+"_sub", outputFile); err != nil {
 				log.Printf("[%s:%s - %s] error while persisting array key values: %v", dbName, collName, attribName, err)
 			}
 		case bson.TypeBinary:
-			if err := handleUuidKeyValue(value, dbName, collName, attribName, outputDir); err != nil {
+			if err := handleUuidKeyValue(value, dbName, collName, attribName, outputFile); err != nil {
 				log.Printf("[%s:%s - %s] error while persisting binary key value: %v", dbName, collName, attribName, err)
 			}
 		case bson.TypeObjectID:
-			err := persistObjectIdValue(elem.Value(), dbName, collName, attribName, outputDir)
+			err := persistObjectIdValue(elem.Value(), dbName, collName, attribName, outputFile)
 			if err != nil {
 				log.Printf("[%s:%s - %s] Error while writing objectId value (%v): %v", dbName, collName, attribName, elem.Value(), err)
 			}
@@ -144,7 +181,7 @@ func handleTypeArrayKeyValues(value bson.RawValue, dbName string, collName strin
 	return nil
 }
 
-func handleComplexTypeKeyValues(value bson.RawValue, dbName string, collName string, attribName string, outputDir string) error {
+func handleComplexTypeKeyValues(value bson.RawValue, dbName string, collName string, attribName string, outputFile *os.File) error {
 	embeddedDoc := bson.Raw(value.Value)
 	elements, err := embeddedDoc.Elements()
 	if err != nil {
@@ -153,61 +190,73 @@ func handleComplexTypeKeyValues(value bson.RawValue, dbName string, collName str
 	for _, elem := range elements {
 		switch elem.Value().Type {
 		case bson.TypeString:
-			if err := handleStringKeyValue(elem.Value(), dbName, collName, fmt.Sprintf("%s-%s", attribName, elem.Key()), outputDir); err != nil {
+			if err := handleStringKeyValue(elem.Value(), dbName, collName, fmt.Sprintf("%s-%s", attribName, elem.Key()), outputFile); err != nil {
 				log.Printf("[%s:%s] error while persisting string key value: %v", dbName, collName, err)
 			}
 		case bson.TypeEmbeddedDocument:
-			if err := handleComplexTypeKeyValues(elem.Value(), dbName, collName, fmt.Sprintf("%s-%s", attribName, elem.Key()), outputDir); err != nil {
+			if err := handleComplexTypeKeyValues(elem.Value(), dbName, collName, fmt.Sprintf("%s-%s", attribName, elem.Key()), outputFile); err != nil {
 				log.Printf("[%s:%s] error while persisting array key values: %v", dbName, collName, err)
 			}
 		case bson.TypeArray:
-			if err := handleTypeArrayKeyValues(elem.Value(), dbName, collName, fmt.Sprintf("%s-%s", attribName, elem.Key()), outputDir); err != nil {
+			if err := handleTypeArrayKeyValues(elem.Value(), dbName, collName, fmt.Sprintf("%s-%s", attribName, elem.Key()), outputFile); err != nil {
 				log.Printf("[%s:%s] error while persisting array key values: %v", dbName, collName, err)
 			}
 		case bson.TypeBinary:
-			if err := handleUuidKeyValue(elem.Value(), dbName, collName, fmt.Sprintf("%s-%s", attribName, elem.Key()), outputDir); err != nil {
+			if err := handleUuidKeyValue(elem.Value(), dbName, collName, fmt.Sprintf("%s-%s", attribName, elem.Key()), outputFile); err != nil {
 				log.Printf("[%s:%s] error while persisting uuid key value: %v", dbName, collName, err)
 			}
 		case bson.TypeObjectID:
-			err := persistObjectIdValue(elem.Value(), dbName, collName, fmt.Sprintf("%s-%s", attribName, elem.Key()), outputDir)
+			err := persistObjectIdValue(elem.Value(), dbName, collName, fmt.Sprintf("%s-%s", attribName, elem.Key()), outputFile)
 			if err != nil {
 				log.Printf("[%s:%s] Error while writing objectId value (%v): %v", dbName, collName, elem.Value(), err)
 			}
 		}
 	}
-	return nil // TODO
+	return nil
 }
 
 func ScanBsonForKeyValues(doc bson.Raw, dbName string, collName string, outputDir string) error {
+	outputFile, err := utils.CreateOutputFile(outputDir, "key-values.json", dbName, collName)
+	if err != nil {
+		panic(err)
+	}
+	defer outputFile.Close()
+
 	elements, err := doc.Elements()
 	if err != nil {
 		log.Printf("Error while parsing bson elements: %v", err)
 		return err
 	}
+
 	for _, elem := range elements {
 		switch elem.Value().Type {
 		case bson.TypeString:
-			if err := handleStringKeyValue(elem.Value(), dbName, collName, elem.Key(), outputDir); err != nil {
+			if err := handleStringKeyValue(elem.Value(), dbName, collName, elem.Key(), outputFile); err != nil {
 				log.Printf("[%s:%s] error while persisting string key value: %v", dbName, collName, err)
 			}
 		case bson.TypeEmbeddedDocument:
-			if err := handleComplexTypeKeyValues(elem.Value(), dbName, collName, elem.Key(), outputDir); err != nil {
+			if err := handleComplexTypeKeyValues(elem.Value(), dbName, collName, elem.Key(), outputFile); err != nil {
 				log.Printf("[%s:%s] error while persisting array key values: %v", dbName, collName, err)
 			}
 		case bson.TypeArray:
-			if err := handleTypeArrayKeyValues(elem.Value(), dbName, collName, elem.Key(), outputDir); err != nil {
+			if err := handleTypeArrayKeyValues(elem.Value(), dbName, collName, elem.Key(), outputFile); err != nil {
 				log.Printf("[%s:%s] error while persisting array key values: %v", dbName, collName, err)
 			}
 		case bson.TypeBinary:
-			if err := handleUuidKeyValue(elem.Value(), dbName, collName, elem.Key(), outputDir); err != nil {
+			if err := handleUuidKeyValue(elem.Value(), dbName, collName, elem.Key(), outputFile); err != nil {
 				log.Printf("[%s:%s] error while persisting uuid key value: %v", dbName, collName, err)
 			}
 		case bson.TypeObjectID:
-			err := persistObjectIdValue(elem.Value(), dbName, collName, elem.Key(), outputDir)
+			err := persistObjectIdValue(elem.Value(), dbName, collName, elem.Key(), outputFile)
 			if err != nil {
 				log.Printf("[%s:%s] Error while writing objectId value (%v): %v", dbName, collName, elem.Value(), err)
 			}
 		}
 	}
+
+	if err := meta.WriteMetaInfo(outputDir, dbName, collName, 0, "", nil); err != nil {
+		panic(err)
+	}
+
 	return nil
 }
