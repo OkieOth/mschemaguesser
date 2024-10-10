@@ -10,8 +10,10 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
+	"okieoth/schemaguesser/internal/pkg/meta"
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
 	"okieoth/schemaguesser/internal/pkg/progressbar"
+	"okieoth/schemaguesser/internal/pkg/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -53,32 +55,28 @@ func keyValuesForOneCollection(client *mongo.Client, dbName string, collName str
 		descr := fmt.Sprintf("JSON export of %s:%s", dbName, collName)
 		progressbar.Init(1, descr)
 	}
-	bsonRaw := make([]bson.Raw, 0)
-	i := 0
-	err := queryCollection(client, dbName, collName, func(data bson.Raw) error {
-		i++
-		bsonRaw = append(bsonRaw, data)
+
+	outputFile, err := utils.CreateOutputFile(outputDir, "key-values.json", dbName, collName)
+	if err != nil {
+		panic(err)
+	}
+	defer outputFile.Close()
+
+	startTime := time.Now()
+	count := uint64(0)
+	err = queryCollection(client, dbName, collName, func(data bson.Raw) error {
+		mongoHelper.ScanBsonForKeyValues(data, dbName, collName, outputFile)
+		if err != nil {
+			log.Printf("[%s:%s] Error while scanning for key values: %v", dbName, collName, err)
+			return err
+		}
+		count++
 		return nil
 	})
-
-	if i > 0 {
-		if err != nil {
-			msg := fmt.Sprintf("Error while reading data of collection (%s.%s): \n%v\n", dbName, collName, err)
-			panic(msg)
-		}
-		startTime := time.Now()
-
-		for _, b := range bsonRaw {
-			mongoHelper.ScanBsonForKeyValues(b, dbName, collName, outputDir)
-			if err != nil {
-				log.Printf("[%s:%s] Error while scanning for key values: %v", dbName, collName, err)
-			}
-		}
-		log.Printf("[%s:%s] Key values persisted in %v\n", dbName, collName, time.Since(startTime))
-	} else {
-		log.Printf("No data for database: %s, collection: %s\n", dbName, collName)
+	if err := meta.WriteMetaInfo(outputDir, dbName, collName, count, "", nil); err != nil {
+		panic(err)
 	}
-
+	log.Printf("[%s:%s] Key values persisted (count = %d) in %v\n", dbName, collName, count, time.Since(startTime))
 }
 
 func keyValuesForAllCollections(client *mongo.Client, dbName string, initProgressBar bool) {
