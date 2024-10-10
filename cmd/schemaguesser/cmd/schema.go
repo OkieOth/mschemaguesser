@@ -136,7 +136,7 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 		otherComplexTypes = schema.ReduceTypes(&mainType, otherComplexTypes)
 		otherComplexTypes = schema.GuessDicts(otherComplexTypes)
 		// ... after identifying dicts, we still can have double types
-		otherComplexTypes = schema.ReduceTypes(&mainType, otherComplexTypes)
+		otherComplexTypes = schema.ReduceDoubleTypesByName(otherComplexTypes)
 		schema.PrintSchema(dbName, collName, &mainType, otherComplexTypes, outputDir)
 		if persistSchemaBase {
 			schema.PersistSchemaBase(dbName, collName, &mainType, otherComplexTypes, outputDir)

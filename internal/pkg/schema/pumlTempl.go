@@ -25,18 +25,30 @@ end note
 
 {{ $lastIndexOthers := LastIndexTypes .OtherComplexTypes -}}
 {{- range $index, $type := .OtherComplexTypes -}}
+  {{ if $type.IsDictionary -}}
+class "**{{ $type.Name }}**" as {{ $type.Name }} <<Map>> #FFFFFF {
+  valueType: {{ $type.DictValueType }}
+} 
+
+{{ $type.Name }} .. {{ $type.DictValueType }}
+
+  {{ else }}
 class "**{{ $type.Name }}**" as {{ $type.Name }} #FFFFFF {
   {{ range $index, $prop := $type.Properties -}}
   {{- $prop.AttribName }}: {{ $prop.ValueType }}
   {{- if $prop.IsArray }}[]{{ end }} 
   {{- if not $prop.IsComplex }}<color:grey>    // {{ $prop.BsonType }}</color>{{ end }}
   {{ end -}}
-}
+}  
+
+  {{- end }}
+
+
 
 {{ end }}
 
 {{- range $index, $type := .Relations -}}
-  {{ $type.Start }} o-- {{ $type.End }}
+  {{ $type.Start }} *-- {{ $type.End }}
 {{ end }}
 
 @enduml

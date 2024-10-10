@@ -15,6 +15,8 @@ import (
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 )
 
+var KeepNullUuids bool
+
 func checkIfStringIsUUIDString(value bson.RawValue) (bool, error) {
 	if value.Type != bson.TypeString {
 		return false, errors.New("value is not of type string")
@@ -64,7 +66,7 @@ func persistStringValue(value bson.RawValue, dbName string, collName string, att
 }
 
 func persistString(strValue string, dbName string, collName string, attribName string, outputFile *os.File) error {
-	if strValue == "00000000-0000-0000-0000-000000000000" {
+	if KeepNullUuids && (strValue == "00000000-0000-0000-0000-000000000000") {
 		// zero uuids are ignored
 		return nil
 	}

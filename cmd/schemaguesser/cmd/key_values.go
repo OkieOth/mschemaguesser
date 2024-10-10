@@ -18,6 +18,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func init() {
+	getCmd.Flags().BoolVar(&mongoHelper.KeepNullUuids, "keep_null_uuids", false, "If this flag is enabled, then '00000000-0000-0000-0000-000000000000' values are included in the approach. By default they are skipped.")
+}
+
 var keyValuesCmd = &cobra.Command{
 	Use:   "key_values",
 	Short: "dump the values of assumed key field to a text file",

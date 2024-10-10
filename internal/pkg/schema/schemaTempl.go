@@ -46,6 +46,11 @@ var schemaTemplateStr = `
     "{{ $type.Name }}": {
       "type": "object",
       "x-dict": {{ $type.IsDictionary }},
+      {{ if $type.IsDictionary -}}
+        "additionalProperties": {
+            "$ref": "#/definitions/{{ $type.DictValueType }}"
+      }
+      {{ else }}
       "properties": {
         {{- $lastIndexProps := LastIndexProps $type.Properties -}}
         {{- range $index, $prop := $type.Properties }}
@@ -74,6 +79,7 @@ var schemaTemplateStr = `
         }{{ if ne $index $lastIndexProps }},{{ end -}}
         {{- end }}
       }
+      {{- end }}
     }{{ if ne $index $lastIndexOthers }},{{ end }}
     {{ end }}
   }

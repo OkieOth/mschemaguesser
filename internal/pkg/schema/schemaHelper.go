@@ -220,7 +220,7 @@ func replaceAllTypeReferences(typeNameToReplace string, typeNameReplacement stri
 func removeUnneededTypes(typesToRemove []string, otherComplexTypes []mongoHelper.ComplexType, mainType *mongoHelper.ComplexType) []mongoHelper.ComplexType {
 	var ret []mongoHelper.ComplexType
 	for _, t := range otherComplexTypes {
-		if notInTypesToRemove(t.Name, typesToRemove) {
+		if notInTypesToRemove(t.LongName, typesToRemove) {
 			ret = append(ret, t)
 		}
 	}
@@ -267,6 +267,31 @@ func removeDigitsFromTypeNames(mainType *mongoHelper.ComplexType, complexTypes [
 	return complexTypes
 }
 
+func ReduceDoubleTypesByName(otherComplexTypes []mongoHelper.ComplexType) []mongoHelper.ComplexType {
+	var typesToRemove []string
+	for i, e1 := range otherComplexTypes {
+		if e1.TypeReduced {
+			continue
+		}
+		for j, e2 := range otherComplexTypes[i+1:] {
+			if e2.TypeReduced {
+				continue
+			}
+			if e1.Name == e2.Name {
+				typesToRemove = append(typesToRemove, e2.LongName)
+				otherComplexTypes[i+j+1].TypeReduced = true
+			}
+		}
+	}
+	var ret []mongoHelper.ComplexType
+	for _, t := range otherComplexTypes {
+		if notInTypesToRemove(t.LongName, typesToRemove) {
+			ret = append(ret, t)
+		}
+	}
+	return ret
+}
+
 func ReduceTypes(mainType *mongoHelper.ComplexType, otherComplexTypes []mongoHelper.ComplexType) []mongoHelper.ComplexType {
 	var typesToRemove []string
 	for i, e1 := range otherComplexTypes {
@@ -278,7 +303,7 @@ func ReduceTypes(mainType *mongoHelper.ComplexType, otherComplexTypes []mongoHel
 				continue
 			}
 			if typesAreEqual(&e1, &e2, otherComplexTypes) {
-				typesToRemove = append(typesToRemove, e2.Name)
+				typesToRemove = append(typesToRemove, e2.LongName)
 				otherComplexTypes[i+j+1].TypeReduced = true
 				replaceAllTypeReferences(e2.Name, e1.Name, otherComplexTypes, mainType)
 			}
