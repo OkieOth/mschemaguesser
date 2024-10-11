@@ -11,7 +11,7 @@ jobs:
     steps:
       # need checkout before using compose-action
       - uses: actions/checkout@v3
-      - uses: isbang/compose-action@v1.5.1
+      - uses: hoverkraft-tech/compose-action@v2.0.2
         with:
           compose-file: "docker/test_env.yaml"
           up-flags: "--build --abort-on-container-exit --exit-code-from test_runner"
