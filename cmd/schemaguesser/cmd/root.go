@@ -18,7 +18,8 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(schemaCmd)
+	rootCmd.AddCommand(getCmd)
+	rootCmd.AddCommand(importCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(versionCmd)
 

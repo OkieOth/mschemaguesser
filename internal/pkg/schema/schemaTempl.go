@@ -1,3 +1,6 @@
+package schema
+
+var schemaTemplateStr = `
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "{{ .MainType.Name }}",
@@ -43,6 +46,11 @@
     "{{ $type.Name }}": {
       "type": "object",
       "x-dict": {{ $type.IsDictionary }},
+      {{ if $type.IsDictionary -}}
+        "additionalProperties": {
+            "$ref": "#/definitions/{{ $type.DictValueType }}"
+      }
+      {{ else }}
       "properties": {
         {{- $lastIndexProps := LastIndexProps $type.Properties -}}
         {{- range $index, $prop := $type.Properties }}
@@ -71,7 +79,9 @@
         }{{ if ne $index $lastIndexProps }},{{ end -}}
         {{- end }}
       }
+      {{- end }}
     }{{ if ne $index $lastIndexOthers }},{{ end }}
     {{ end }}
   }
 }
+`

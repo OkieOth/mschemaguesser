@@ -24,4 +24,11 @@ tmp.*
 *.tmp
 test.*
 tmp
+temp
+tmp_*
 mschemaguesser
+*.log
+log.txt
+set_debug_env.sh
+debug_test.go
+debug_test.*
