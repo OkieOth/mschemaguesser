@@ -30,7 +30,7 @@ func Test_jsonForAllDatabases_IT(t *testing.T) {
 	jsonForAllDatabases(client, false)
 
 	expected := []string{"admin_system_users.json", "admin_system_version.json", "config_system_sessions.json",
-		"dummy_c1.json", "dummy_c2.json", "local_startup_log.json"}
+		"dummy_c1.json", "dummy_c2.json", "dummy_c3.json", "local_startup_log.json"}
 
 	if !testhelper.ValidateExpectedFiles(outputDir, expected, t) {
 		return
@@ -60,7 +60,7 @@ func Test_jsonForAllCollections_IT(t *testing.T) {
 
 	jsonForAllCollections(client, "dummy", false)
 
-	expected := []string{"dummy_c1.json", "dummy_c2.json"}
+	expected := []string{"dummy_c1.json", "dummy_c2.json", "dummy_c3.json"}
 
 	if !testhelper.ValidateExpectedFiles(outputDir, expected, t) {
 		return

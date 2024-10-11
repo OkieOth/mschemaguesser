@@ -92,7 +92,7 @@ func Test_getAllCollectionsOrPanic_2_IT(t *testing.T) {
 	}
 
 	collections := getAllCollectionsOrPanic(client, "dummy")
-	expected := []string{"c1", "c2"}
+	expected := []string{"c1", "c2", "c3"}
 
 	l1 := len(collections)
 	l2 := len(expected)

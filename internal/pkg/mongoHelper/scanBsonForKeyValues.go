@@ -152,7 +152,7 @@ func handleTypeArrayKeyValues(value bson.RawValue, dbName string, collName strin
 	lastTypeSet := false
 	for _, elem := range elements {
 		if (lastTypeSet) && (lastType != elem.Value().Type) {
-			return errors.New(fmt.Sprintf("[%s:%s - %s] array type consists of different types, multiple type arrays are not supported", dbName, collName))
+			return errors.New(fmt.Sprintf("[%s:%s - %s] array type consists of different types, multiple type arrays are not supported", dbName, collName, attribName))
 		} else {
 			if !lastTypeSet {
 				lastType = elem.Value().Type

@@ -29,7 +29,7 @@ func Test_bsonForAllDatabases_IT(t *testing.T) {
 
 	expected := []string{"admin_system_users.bson", "admin_system_version.bson", "config_system_sessions.bson", "dummy_c1.meta",
 		"dummy_c2.meta", "local_startup_log.meta", "admin_system_users.meta", "admin_system_version.meta",
-		"dummy_c1.bson", "dummy_c2.bson", "local_startup_log.bson"}
+		"dummy_c1.bson", "dummy_c2.bson", "dummy_c3.bson", "dummy_c3.meta", "local_startup_log.bson"}
 
 	if !testhelper.ValidateExpectedFiles(outputDir, expected, t) {
 		return
@@ -59,7 +59,7 @@ func Test_bsonForAllCollections_IT(t *testing.T) {
 
 	bsonForAllCollections(client, "dummy", false)
 
-	expected := []string{"dummy_c1.bson", "dummy_c2.bson", "dummy_c1.meta", "dummy_c2.meta"}
+	expected := []string{"dummy_c1.bson", "dummy_c2.bson", "dummy_c3.bson", "dummy_c1.meta", "dummy_c2.meta", "dummy_c3.meta"}
 
 	if !testhelper.ValidateExpectedFiles(outputDir, expected, t) {
 		return

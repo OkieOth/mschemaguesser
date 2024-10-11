@@ -71,7 +71,7 @@ func Test_printSchemaForAllDatabases_IT(t *testing.T) {
 	printSchemasForAllDatabases(client, false)
 
 	expected := []string{"admin_system_users.schema.json", "admin_system_version.schema.json",
-		"dummy_c1.schema.json", "dummy_c2.schema.json", "local_startup_log.schema.json"}
+		"dummy_c1.schema.json", "dummy_c2.schema.json", "dummy_c3.schema.json", "local_startup_log.schema.json"}
 
 	if !testhelper.ValidateExpectedFiles(outputDir, expected, t) {
 		return
@@ -188,7 +188,7 @@ func Test_printSchemaForAllCollections_IT(t *testing.T) {
 
 	printSchemasForAllCollections(client, "dummy", false)
 
-	expected := []string{"dummy_c1.schema.json", "dummy_c2.schema.json"}
+	expected := []string{"dummy_c1.schema.json", "dummy_c2.schema.json", "dummy_c3.schema.json"}
 
 	if !testhelper.ValidateExpectedFiles(outputDir, expected, t) {
 		return
