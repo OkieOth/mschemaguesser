@@ -396,6 +396,7 @@ func handleTypeBinary(elem bson.RawElement, typeInfo *BasicElemInfo) {
 	typeInfo.Comment = fmt.Sprintf("Mongodb type binary: subtype=%v", subtype)
 	switch subtype {
 	case 3:
+		typeInfo.Comment = "deprecated: UUID v3"
 		typeInfo.Format = "uuid"
 	case 4:
 		typeInfo.Format = "uuid"
