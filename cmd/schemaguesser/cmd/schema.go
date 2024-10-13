@@ -22,12 +22,16 @@ var schemaCmd = &cobra.Command{
 	Short: "functions around the schemas",
 	Long:  "With this command you can create schemas out of mongodb collection",
 	Run: func(cmd *cobra.Command, args []string) {
-		client, err := mongoHelper.Connect(mongoHelper.ConStr)
-		if err != nil {
-			msg := fmt.Sprintf("Failed to connect to db: %v", err)
-			panic(msg)
+		var client *mongo.Client
+		var err error
+		if !useDumps {
+			client, err = mongoHelper.Connect(mongoHelper.ConStr)
+			if err != nil {
+				msg := fmt.Sprintf("Failed to connect to db: %v", err)
+				panic(msg)
+			}
+			defer mongoHelper.CloseConnection(client)
 		}
-		defer mongoHelper.CloseConnection(client)
 
 		if databaseName == "all" {
 			printSchemasForAllDatabases(client, true)
@@ -151,7 +155,7 @@ func printSchemaForOneCollection(client *mongo.Client, dbName string, collName s
 }
 
 func printSchemasForAllCollections(client *mongo.Client, dbName string, initProgressBar bool) {
-	collections := getAllCollectionsOrPanic(client, dbName)
+	collections := getAllCollectionsOrPanic(client, dumpDir, useDumps, dbName)
 	collections = removeBlacklisted(collections, blacklist)
 	var wg sync.WaitGroup
 	if initProgressBar {
@@ -179,7 +183,7 @@ func printSchemasForAllCollections(client *mongo.Client, dbName string, initProg
 }
 
 func printSchemasForAllDatabases(client *mongo.Client, initProgressBar bool) {
-	dbs := getAllDatabasesOrPanic(client)
+	dbs := getAllDatabasesOrPanic(client, dumpDir, useDumps)
 	var wg sync.WaitGroup
 	if initProgressBar {
 		progressbar.Init(int64(len(dbs)), "Schema for all databases")

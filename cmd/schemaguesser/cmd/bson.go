@@ -135,7 +135,7 @@ func bsonForOneCollection_old(client *mongo.Client, dbName string, collName stri
 }
 
 func bsonForAllCollections(client *mongo.Client, dbName string, initProgressBar bool) {
-	collections := getAllCollectionsOrPanic(client, dbName)
+	collections := getAllCollectionsOrPanic(client, dumpDir, useDumps, dbName)
 	var wg sync.WaitGroup
 	if initProgressBar {
 		progressbar.Init(int64(len(collections)), "BSON export for all collections")
@@ -163,7 +163,7 @@ func bsonForAllCollections(client *mongo.Client, dbName string, initProgressBar 
 }
 
 func bsonForAllDatabases(client *mongo.Client, initProgressBar bool) {
-	dbs := getAllDatabasesOrPanic(client)
+	dbs := getAllDatabasesOrPanic(client, dumpDir, useDumps)
 	var wg sync.WaitGroup
 	if initProgressBar {
 		progressbar.Init(int64(len(dbs)), "BSON export for all databases")

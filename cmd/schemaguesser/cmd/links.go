@@ -7,10 +7,7 @@ import (
 	"slices"
 	"time"
 
-	"go.mongodb.org/mongo-driver/mongo"
-
 	linkshelper "okieoth/schemaguesser/internal/pkg/linksHelper"
-	"okieoth/schemaguesser/internal/pkg/mongoHelper"
 	"okieoth/schemaguesser/internal/pkg/progressbar"
 
 	"github.com/spf13/cobra"
@@ -27,27 +24,20 @@ var linksCmd = &cobra.Command{
 	Short: "Search for ID links between collections in before persisted key values",
 	Long:  "With this command you can search for collection links between ID fields (objectId, uuid or strings in uuid format).",
 	Run: func(cmd *cobra.Command, args []string) {
-		client, err := mongoHelper.Connect(mongoHelper.ConStr)
-		if err != nil {
-			msg := fmt.Sprintf("Failed to connect to db: %v", err)
-			panic(msg)
-		}
-		defer mongoHelper.CloseConnection(client)
-
 		if databaseName == "all" {
-			linksForAllDatabases(client, true)
+			linksForAllDatabases(true)
 		} else {
 			if collectionName == "all" {
-				linksForAllCollections(client, databaseName, true)
+				linksForAllCollections(databaseName, true)
 			} else {
-				linksForOneCollection(client, databaseName, collectionName, false, true)
+				linksForOneCollection(databaseName, collectionName, false, true)
 			}
 		}
 
 	},
 }
 
-func linksForOneCollection(client *mongo.Client, dbName string, collName string, doRecover bool, initProgressBar bool) {
+func linksForOneCollection(dbName string, collName string, doRecover bool, initProgressBar bool) {
 	defer func() {
 		if doRecover {
 			if r := recover(); r != nil {
@@ -70,7 +60,7 @@ func linksForOneCollection(client *mongo.Client, dbName string, collName string,
 	startTime := time.Now()
 	_, err := linkshelper.GetKeyValues(keyValuesDir, dbName, collName)
 	if err != nil {
-		log.Println("[%s:%s] Error while reading key-values: %v", dbName, collName, err)
+		log.Printf("[%s:%s] Error while reading key-values: %v", dbName, collName, err)
 		return
 	}
 
@@ -103,8 +93,8 @@ func linksForOneCollection(client *mongo.Client, dbName string, collName string,
 	}
 }
 
-func linksForAllCollections(client *mongo.Client, dbName string, initProgressBar bool) {
-	collections := getAllCollectionsOrPanic(client, dbName)
+func linksForAllCollections(dbName string, initProgressBar bool) {
+	collections := getAllCollectionsOrPanic(nil, keyValuesDir, true, dbName)
 	if initProgressBar {
 		progressbar.Init(int64(len(collections)), "Links for all collections")
 	}
@@ -120,13 +110,13 @@ func linksForAllCollections(client *mongo.Client, dbName string, initProgressBar
 					progressbar.ProgressOne()
 				}
 			}()
-			linksForOneCollection(client, dbName, s, true, false)
+			linksForOneCollection(dbName, s, true, false)
 		}(coll)
 	}
 }
 
-func linksForAllDatabases(client *mongo.Client, initProgressBar bool) {
-	dbs := getAllDatabasesOrPanic(client)
+func linksForAllDatabases(initProgressBar bool) {
+	dbs := getAllDatabasesOrPanic(nil, keyValuesDir, true)
 	if initProgressBar {
 		progressbar.Init(int64(len(dbs)), "Links for all databases")
 	}
@@ -143,7 +133,7 @@ func linksForAllDatabases(client *mongo.Client, initProgressBar bool) {
 					progressbar.ProgressOne()
 				}
 			}()
-			linksForAllCollections(client, s, false)
+			linksForAllCollections(s, false)
 		}(db)
 	}
 }

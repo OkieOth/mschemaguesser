@@ -30,12 +30,16 @@ var jsonCmd = &cobra.Command{
 	Short: "dump bson content converted to JSON",
 	Long:  "With this command you can dump raw content as converted JSON of one or more mongodb collections. The usecase is comparing collection content in an editor for instance.",
 	Run: func(cmd *cobra.Command, args []string) {
-		client, err := mongoHelper.Connect(mongoHelper.ConStr)
-		if err != nil {
-			msg := fmt.Sprintf("Failed to connect to db: %v", err)
-			panic(msg)
+		var client *mongo.Client
+		var err error
+		if !useDumps {
+			client, err = mongoHelper.Connect(mongoHelper.ConStr)
+			if err != nil {
+				msg := fmt.Sprintf("Failed to connect to db: %v", err)
+				panic(msg)
+			}
+			defer mongoHelper.CloseConnection(client)
 		}
-		defer mongoHelper.CloseConnection(client)
 
 		if databaseName == "all" {
 			jsonForAllDatabases(client, true)
@@ -159,7 +163,7 @@ func jsonForOneCollection(client *mongo.Client, dbName string, collName string, 
 }
 
 func jsonForAllCollections(client *mongo.Client, dbName string, initProgressBar bool) {
-	collections := getAllCollectionsOrPanic(client, dbName)
+	collections := getAllCollectionsOrPanic(client, dumpDir, useDumps, dbName)
 	var wg sync.WaitGroup
 	if initProgressBar {
 		progressbar.Init(int64(len(collections)), "JSON export for all collections")
@@ -187,7 +191,7 @@ func jsonForAllCollections(client *mongo.Client, dbName string, initProgressBar 
 }
 
 func jsonForAllDatabases(client *mongo.Client, initProgressBar bool) {
-	dbs := getAllDatabasesOrPanic(client)
+	dbs := getAllDatabasesOrPanic(client, dumpDir, useDumps)
 	var wg sync.WaitGroup
 	if initProgressBar {
 		progressbar.Init(int64(len(dbs)), "JSON export for all databases")
