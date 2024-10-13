@@ -19,7 +19,7 @@ import (
 )
 
 func init() {
-	getCmd.Flags().BoolVar(&mongoHelper.KeepNullUuids, "keep_null_uuids", false, "If this flag is enabled, then '00000000-0000-0000-0000-000000000000' values are included in the approach. By default they are skipped.")
+	keyValuesCmd.Flags().BoolVar(&mongoHelper.KeepNullUuids, "keep_null_uuids", false, "If this flag is enabled, then '00000000-0000-0000-0000-000000000000' values are included in the approach. By default they are skipped.")
 }
 
 var keyValuesCmd = &cobra.Command{
@@ -60,7 +60,7 @@ func keyValuesForOneCollection(client *mongo.Client, dbName string, collName str
 		progressbar.Init(1, descr)
 	}
 
-	outputFile, err := utils.CreateOutputFile(outputDir, "key-values.json", dbName, collName)
+	outputFile, err := utils.CreateOutputFile(outputDir, "key-values.txt", dbName, collName)
 	if err != nil {
 		panic(err)
 	}
