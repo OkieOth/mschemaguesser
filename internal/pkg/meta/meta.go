@@ -9,6 +9,7 @@ import (
 	"errors"
 	"log"
 	"okieoth/schemaguesser/internal/pkg/utils"
+	"path/filepath"
 	"time"
 )
 
@@ -24,6 +25,7 @@ type MetaInfo struct {
 	Version    string       `json:"version,omitempty"`
 	Comment    string       `json:"comment,omitempty"`
 	Db         string       `json:"db,omitempty"`
+	FileName   string       `json:"fileName,omitempty"`
 	Collection string       `json:"collection,omitempty"`
 	ExportTime time.Time    `json:"exportTime,omitempty"`
 	ItemCount  uint64       `json:"itemCount,omitempty"`
@@ -41,6 +43,7 @@ func WriteMetaInfo(outputDir string, dbName string, collName string, itemCount u
 	metaInfo.Version = version
 	metaInfo.Collection = collName
 	metaInfo.Db = dbName
+	metaInfo.FileName = filepath.Base(outputFile.Name())
 	metaInfo.Comment = comment
 	metaInfo.ExportTime = time.Now()
 	metaInfo.ItemCount = itemCount
@@ -59,6 +62,5 @@ func WriteMetaInfo(outputDir string, dbName string, collName string, itemCount u
 		log.Printf("Failed to write document length to file: %v", err)
 		return err
 	}
-
 	return nil
 }

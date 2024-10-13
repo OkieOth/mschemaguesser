@@ -8,6 +8,7 @@ import (
 	"time"
 
 	linkshelper "okieoth/schemaguesser/internal/pkg/linksHelper"
+	"okieoth/schemaguesser/internal/pkg/meta"
 	"okieoth/schemaguesser/internal/pkg/progressbar"
 
 	"github.com/spf13/cobra"
@@ -24,20 +25,25 @@ var linksCmd = &cobra.Command{
 	Short: "Search for ID links between collections in before persisted key values",
 	Long:  "With this command you can search for collection links between ID fields (objectId, uuid or strings in uuid format).",
 	Run: func(cmd *cobra.Command, args []string) {
+		metaInfos, err := meta.GetAllMetaInfos(keyValuesDir)
+		if err != nil {
+			panic(fmt.Sprintf("Error while retrieve all available meta infos in: %s - %v", keyValuesDir, err))
+		}
+
 		if databaseName == "all" {
-			linksForAllDatabases(true)
+			linksForAllDatabases(metaInfos, true)
 		} else {
 			if collectionName == "all" {
-				linksForAllCollections(databaseName, true)
+				linksForAllCollections(metaInfos, databaseName, true)
 			} else {
-				linksForOneCollection(databaseName, collectionName, false, true)
+				linksForOneCollection(metaInfos, databaseName, collectionName, false, true)
 			}
 		}
 
 	},
 }
 
-func linksForOneCollection(dbName string, collName string, doRecover bool, initProgressBar bool) {
+func linksForOneCollection(metaInfos []meta.MetaInfo, dbName string, collName string, doRecover bool, initProgressBar bool) {
 	defer func() {
 		if doRecover {
 			if r := recover(); r != nil {
@@ -93,7 +99,7 @@ func linksForOneCollection(dbName string, collName string, doRecover bool, initP
 	}
 }
 
-func linksForAllCollections(dbName string, initProgressBar bool) {
+func linksForAllCollections(metaInfos []meta.MetaInfo, dbName string, initProgressBar bool) {
 	collections := getAllCollectionsOrPanic(nil, keyValuesDir, true, dbName)
 	if initProgressBar {
 		progressbar.Init(int64(len(collections)), "Links for all collections")
@@ -110,12 +116,12 @@ func linksForAllCollections(dbName string, initProgressBar bool) {
 					progressbar.ProgressOne()
 				}
 			}()
-			linksForOneCollection(dbName, s, true, false)
+			linksForOneCollection(metaInfos, dbName, s, true, false)
 		}(coll)
 	}
 }
 
-func linksForAllDatabases(initProgressBar bool) {
+func linksForAllDatabases(metaInfos []meta.MetaInfo, initProgressBar bool) {
 	dbs := getAllDatabasesOrPanic(nil, keyValuesDir, true)
 	if initProgressBar {
 		progressbar.Init(int64(len(dbs)), "Links for all databases")
@@ -133,7 +139,7 @@ func linksForAllDatabases(initProgressBar bool) {
 					progressbar.ProgressOne()
 				}
 			}()
-			linksForAllCollections(s, false)
+			linksForAllCollections(metaInfos, s, false)
 		}(db)
 	}
 }
