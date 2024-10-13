@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"slices"
+	"sync"
 	"time"
 
 	linkshelper "okieoth/schemaguesser/internal/pkg/linksHelper"
@@ -64,35 +65,36 @@ func linksForOneCollection(metaInfos []meta.MetaInfo, dbName string, collName st
 	// defer outputFile.Close()
 
 	startTime := time.Now()
-	_, err := linkshelper.GetKeyValues(keyValuesDir, dbName, collName)
+	keyValues, err := linkshelper.GetKeyValues(keyValuesDir, dbName, collName)
 	if err != nil {
 		log.Printf("[%s:%s] Error while reading key-values: %v", dbName, collName, err)
 		return
 	}
 
-	// i := 0
+	lenMetaInfos := len(metaInfos)
+	if lenMetaInfos > 1 {
+		var wg sync.WaitGroup
+		wg.Add(lenMetaInfos - 1)
+		for _, metaInfo := range metaInfos {
+			if (metaInfo.Db == dbName) && (metaInfo.Collection == collName) {
+				continue
+			}
+			go func(mf meta.MetaInfo) {
+				defer func() {
+					wg.Done()
+				}()
+				for k, _ := range keyValues {
+					_, err := linkshelper.FoundKeyValue(keyValuesDir, metaInfo.Db, metaInfo.Collection, k)
+					if err != nil {
+						log.Printf("[%s:%s] Error while searching for value (%s) in %s:%s: %v", dbName, collName, k, metaInfo.Db, metaInfo.Collection, err)
+					}
+					// TODO - do something with the found links
+				}
+			}(metaInfo)
+		}
 
-	// utils.DumpBytesToFile([]byte("["), outputFile)
-	// err = queryCollection(client, dbName, collName, func(data bson.Raw) error {
-	// 	bytes, err := getJsonBytes(&data)
-	// 	if err != nil {
-	// 		log.Printf("Error while converting to JSON: %v", err)
-	// 		return err
-	// 	}
-	// 	if i > 0 {
-	// 		utils.DumpBytesToFile([]byte(","), outputFile)
-	// 	}
-	// 	utils.DumpBytesToFile(bytes, outputFile)
-	// 	utils.DumpBytesToFile([]byte("\n"), outputFile)
-	// 	i++
-	// 	return nil // TODO
-	// })
-	// utils.DumpBytesToFile([]byte("]"), outputFile)
-
-	// if err != nil {
-	// 	msg := fmt.Sprintf("Error while reading data for collection (%s.%s): \n%v\n", dbName, collName, err)
-	// 	panic(msg)
-	// }
+		wg.Wait()
+	}
 	log.Printf("[%s:%s] Links of collection are gathered in %v\n", dbName, collName, time.Since(startTime))
 	if initProgressBar {
 		progressbar.ProgressOne()

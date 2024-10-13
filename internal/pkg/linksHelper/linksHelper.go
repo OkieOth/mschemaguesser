@@ -54,3 +54,30 @@ func OpenKeyValuesFile(keyValueDir string, dbName string, colName string) (*os.F
 	filePath := utils.GetFileName(keyValueDir, "key-values.txt", dbName, colName)
 	return os.Open(filePath)
 }
+
+func FoundKeyValue(keyValueDir string, dbName string, collName string, valueToFind string) ([]string, error) {
+	ret := make([]string, 0)
+	file, err := OpenKeyValuesFile(keyValueDir, dbName, collName)
+	if err != nil {
+		return ret, fmt.Errorf("error while open key-values file: dir=%s, db=%s, colName=%s", keyValueDir, dbName, collName)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.SplitN(line, ": ", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		if (parts[1] == valueToFind) && (!slices.Contains(ret, parts[0])) {
+			ret = append(ret, parts[0])
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return ret, fmt.Errorf("error while reading the file: %v", err)
+	}
+
+	return ret, nil
+}
