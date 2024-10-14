@@ -31,20 +31,22 @@ var linksCmd = &cobra.Command{
 			panic(fmt.Sprintf("Error while retrieve all available meta infos in: %s - %v", keyValuesDir, err))
 		}
 
+		colRefs := make([]linkshelper.ColRefs, 0)
+
 		if databaseName == "all" {
-			linksForAllDatabases(metaInfos, true)
+			linksForAllDatabases(metaInfos, colRefs, true)
 		} else {
 			if collectionName == "all" {
-				linksForAllCollections(metaInfos, databaseName, true)
+				linksForAllCollections(metaInfos, colRefs, databaseName, true)
 			} else {
-				linksForOneCollection(metaInfos, databaseName, collectionName, false, true)
+				linksForOneCollection(metaInfos, colRefs, databaseName, collectionName, false, true)
 			}
 		}
 
 	},
 }
 
-func linksForOneCollection(metaInfos []meta.MetaInfo, dbName string, collName string, doRecover bool, initProgressBar bool) {
+func linksForOneCollection(metaInfos []meta.MetaInfo, colRefs []linkshelper.ColRefs, dbName string, collName string, doRecover bool, initProgressBar bool) []linkshelper.ColRefs {
 	defer func() {
 		if doRecover {
 			if r := recover(); r != nil {
@@ -68,42 +70,56 @@ func linksForOneCollection(metaInfos []meta.MetaInfo, dbName string, collName st
 	keyValues, err := linkshelper.GetKeyValues(keyValuesDir, dbName, collName)
 	if err != nil {
 		log.Printf("[%s:%s] Error while reading key-values: %v", dbName, collName, err)
-		return
+		return colRefs
 	}
 
 	lenMetaInfos := len(metaInfos)
 	if lenMetaInfos > 1 {
 		var wg sync.WaitGroup
 		wg.Add(lenMetaInfos - 1)
+
+		var waitForCollectRefsChannel sync.WaitGroup
+		collectRefsChannel := make(chan linkshelper.ColRefs)
+
+		waitForCollectRefsChannel.Add(1)
+		go func(chOut <-chan linkshelper.ColRefs) {
+			defer func() {
+				waitForCollectRefsChannel.Done()
+			}()
+			for v := range chOut {
+				// TODO aggregate the received ColRests
+				colRefs = append(colRefs, v)
+			}
+		}(collectRefsChannel)
+
 		for _, metaInfo := range metaInfos {
 			if (metaInfo.Db == dbName) && (metaInfo.Collection == collName) {
 				continue
 			}
-			go func(mf meta.MetaInfo) {
+			go func(mf meta.MetaInfo, chIn chan<- linkshelper.ColRefs) {
 				defer func() {
 					wg.Done()
 				}()
-				for k, _ := range keyValues {
-					_, err := linkshelper.FoundKeyValue(keyValuesDir, metaInfo.Db, metaInfo.Collection, k)
+				for k, v := range keyValues {
+					err := linkshelper.FoundKeyValue(keyValuesDir, metaInfo.Db, metaInfo.Collection, k, v, dbName, collName, chIn)
 					if err != nil {
 						log.Printf("[%s:%s] Error while searching for value (%s) in %s:%s: %v", dbName, collName, k, metaInfo.Db, metaInfo.Collection, err)
 					}
-					// if len(deps) > 0 {
-					// 	// TODO - do something with the found links
-					// }
 				}
-			}(metaInfo)
+			}(metaInfo, collectRefsChannel)
 		}
-
 		wg.Wait()
+		close(collectRefsChannel)
+		waitForCollectRefsChannel.Wait()
 	}
 	log.Printf("[%s:%s] Links of collection are gathered in %v\n", dbName, collName, time.Since(startTime))
 	if initProgressBar {
 		progressbar.ProgressOne()
 	}
+	return colRefs
 }
 
-func linksForAllCollections(metaInfos []meta.MetaInfo, dbName string, initProgressBar bool) {
+func linksForAllCollections(metaInfos []meta.MetaInfo, colRefs []linkshelper.ColRefs, dbName string, initProgressBar bool) []linkshelper.ColRefs {
 	collections := getAllCollectionsOrPanic(nil, keyValuesDir, true, dbName)
 	if initProgressBar {
 		progressbar.Init(int64(len(collections)), "Links for all collections")
@@ -113,19 +129,17 @@ func linksForAllCollections(metaInfos []meta.MetaInfo, dbName string, initProgre
 		if slices.Contains(blacklist, coll) {
 			log.Printf("[%s:%s] skip blacklisted collection\n", dbName, coll)
 			continue
+		} else {
+			colRefs = linksForOneCollection(metaInfos, colRefs, dbName, coll, true, false)
+			if initProgressBar {
+				progressbar.ProgressOne()
+			}
 		}
-		go func(s string) {
-			defer func() {
-				if initProgressBar {
-					progressbar.ProgressOne()
-				}
-			}()
-			linksForOneCollection(metaInfos, dbName, s, true, false)
-		}(coll)
 	}
+	return colRefs
 }
 
-func linksForAllDatabases(metaInfos []meta.MetaInfo, initProgressBar bool) {
+func linksForAllDatabases(metaInfos []meta.MetaInfo, colRefs []linkshelper.ColRefs, initProgressBar bool) []linkshelper.ColRefs {
 	dbs := getAllDatabasesOrPanic(nil, keyValuesDir, true)
 	if initProgressBar {
 		progressbar.Init(int64(len(dbs)), "Links for all databases")
@@ -135,15 +149,12 @@ func linksForAllDatabases(metaInfos []meta.MetaInfo, initProgressBar bool) {
 			log.Printf("[%s] skip blacklisted DB\n", db)
 			continue
 		}
-		go func(s string) {
-			startTime := time.Now()
-			defer func() {
-				log.Printf("[%s] Links for DB in %v\n", s, time.Since(startTime))
-				if initProgressBar {
-					progressbar.ProgressOne()
-				}
-			}()
-			linksForAllCollections(metaInfos, s, false)
-		}(db)
+		startTime := time.Now()
+		colRefs = linksForAllCollections(metaInfos, colRefs, db, false)
+		if initProgressBar {
+			progressbar.ProgressOne()
+		}
+		log.Printf("[%s] Links for DB in %v\n", db, time.Since(startTime))
 	}
+	return colRefs
 }

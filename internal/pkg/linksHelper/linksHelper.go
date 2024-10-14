@@ -3,30 +3,34 @@ package linksHelper
 import (
 	"bufio"
 	"fmt"
-	"okieoth/schemaguesser/internal/pkg/meta"
 	"okieoth/schemaguesser/internal/pkg/utils"
 	"os"
 	"slices"
 	"strings"
 )
 
-type ColDependency struct {
-	Db             string
-	Collection     string
-	AttributeNames []string
+// Stores the reference details for one found reference
+type AttribRefDetails struct {
+	// database where the reference was found
+	Db string
+	// collection where the reference was found
+	Collection string
+	// list of attribute string that are referenced
+	Attributes []string
 }
 
-type CollectionDependencies struct {
-	CollectionInfo meta.MetaInfo
-	Dependencies   []meta.MetaInfo
+// Stores the references of a single attribute
+type AttribRef struct {
+	AttribStr string
+	// The different references to this attributes
+	References []AttribRefDetails
 }
 
-func NewColDependency(dbName string, collName string) ColDependency {
-	return ColDependency{
-		Db:             dbName,
-		Collection:     collName,
-		AttributeNames: make([]string, 0),
-	}
+// Stores all the references of a collection to other collections, over all databases
+type ColRefs struct {
+	Db         string
+	Collection string
+	AttribRefs []AttribRef
 }
 
 // This function read a key values file, extract the unique key values and return them
@@ -75,14 +79,14 @@ func OpenKeyValuesFile(keyValueDir string, dbName string, colName string) (*os.F
 	return os.Open(filePath)
 }
 
-func FoundKeyValue(keyValueDir string, dbName string, collName string, valueToFind string) (ColDependency, error) {
-
-	ret := NewColDependency(dbName, collName)
-	file, err := OpenKeyValuesFile(keyValueDir, dbName, collName)
+func FoundKeyValue(keyValueDir string, destDbName string, destCollName string, valueToFind string, sourceAttribsWithValue []string, sourceDbName string, sourceCollName string, chIn chan<- ColRefs) error {
+	file, err := OpenKeyValuesFile(keyValueDir, destDbName, destCollName)
 	if err != nil {
-		return ret, fmt.Errorf("error while open key-values file: dir=%s, db=%s, colName=%s", keyValueDir, dbName, collName)
+		return fmt.Errorf("error while open key-values file: dir=%s, db=%s, colName=%s", keyValueDir, destDbName, destCollName)
 	}
 	defer file.Close()
+
+	foundAttribs := make([]string, 0)
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -91,16 +95,31 @@ func FoundKeyValue(keyValueDir string, dbName string, collName string, valueToFi
 		if len(parts) != 2 {
 			continue
 		}
-		// TODO
-		// if (parts[1] == valueToFind) && (!slices.Contains(ret, parts[0])) {
-
-		// 	ret = append(ret, parts[0])
-		// }
+		if (parts[1] == valueToFind) && (!slices.Contains(foundAttribs, parts[0])) {
+			foundAttribs = append(foundAttribs, parts[0])
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		return ret, fmt.Errorf("error while reading the file: %v", err)
+		return fmt.Errorf("error while reading the file: %v", err)
 	}
 
-	return ret, nil
+	colRefs := new(ColRefs)
+	colRefs.Db = sourceDbName
+	colRefs.Collection = sourceCollName
+
+	if len(foundAttribs) > 0 {
+		for _, e := range sourceAttribsWithValue {
+			ref := new(AttribRef)
+			ref.AttribStr = e
+			details := new(AttribRefDetails)
+			details.Db = destDbName
+			details.Collection = destCollName
+			details.Attributes = foundAttribs
+			ref.References = append(ref.References, *details)
+			colRefs.AttribRefs = append(colRefs.AttribRefs, *ref)
+		}
+	}
+
+	return nil
 }
