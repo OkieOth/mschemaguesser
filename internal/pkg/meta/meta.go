@@ -34,7 +34,7 @@ type MetaInfo struct {
 	Timeout    *TimeoutInfo `json:"timeout,omitempty"`
 }
 
-func WriteMetaInfo(outputDir string, dbName string, collName string, itemCount uint64, comment string, timeout *TimeoutInfo) error {
+func WriteMetaInfo(outputDir string, dbName string, collName string, itemCount uint64, comment string, timeout *TimeoutInfo, relatedFileName string) error {
 	outputFile, err := utils.CreateOutputFile(outputDir, "meta", dbName, collName)
 	if err != nil {
 		return err
@@ -45,7 +45,7 @@ func WriteMetaInfo(outputDir string, dbName string, collName string, itemCount u
 	metaInfo.Version = version
 	metaInfo.Collection = collName
 	metaInfo.Db = dbName
-	metaInfo.FileName = filepath.Base(outputFile.Name())
+	metaInfo.FileName = relatedFileName
 	metaInfo.Comment = comment
 	metaInfo.ExportTime = time.Now()
 	metaInfo.ItemCount = itemCount

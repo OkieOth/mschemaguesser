@@ -16,6 +16,7 @@ import (
 	"okieoth/schemaguesser/internal/pkg/utils"
 
 	"github.com/spf13/cobra"
+	"path/filepath"
 )
 
 func init() {
@@ -81,7 +82,7 @@ func keyValuesForOneCollection(client *mongo.Client, dbName string, collName str
 		count++
 		return nil
 	})
-	if err := meta.WriteMetaInfo(outputDir, dbName, collName, count, "", nil); err != nil {
+	if err := meta.WriteMetaInfo(outputDir, dbName, collName, count, "", nil, filepath.Base(outputFile.Name())); err != nil {
 		panic(err)
 	}
 	log.Printf("[%s:%s] Key values persisted (count = %d) in %v\n", dbName, collName, count, time.Since(startTime))

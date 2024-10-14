@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"path/filepath"
 	"slices"
 	"sync"
 	"time"
@@ -91,7 +92,7 @@ func bsonForOneCollection(client *mongo.Client, dbName string, collName string, 
 			default:
 			}
 		}
-		if err := meta.WriteMetaInfo(outputDir, dbName, collName, dumpCount, comment, timeoutInfo); err != nil {
+		if err := meta.WriteMetaInfo(outputDir, dbName, collName, dumpCount, comment, timeoutInfo, filepath.Base(outputFile.Name())); err != nil {
 			panic(err)
 		}
 	}

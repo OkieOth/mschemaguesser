@@ -3,11 +3,31 @@ package linksHelper
 import (
 	"bufio"
 	"fmt"
+	"okieoth/schemaguesser/internal/pkg/meta"
 	"okieoth/schemaguesser/internal/pkg/utils"
 	"os"
 	"slices"
 	"strings"
 )
+
+type ColDependency struct {
+	Db             string
+	Collection     string
+	AttributeNames []string
+}
+
+type CollectionDependencies struct {
+	CollectionInfo meta.MetaInfo
+	Dependencies   []meta.MetaInfo
+}
+
+func NewColDependency(dbName string, collName string) ColDependency {
+	return ColDependency{
+		Db:             dbName,
+		Collection:     collName,
+		AttributeNames: make([]string, 0),
+	}
+}
 
 // This function read a key values file, extract the unique key values and return them
 // as map, where the key value is key of the map and ...
@@ -55,8 +75,9 @@ func OpenKeyValuesFile(keyValueDir string, dbName string, colName string) (*os.F
 	return os.Open(filePath)
 }
 
-func FoundKeyValue(keyValueDir string, dbName string, collName string, valueToFind string) ([]string, error) {
-	ret := make([]string, 0)
+func FoundKeyValue(keyValueDir string, dbName string, collName string, valueToFind string) (ColDependency, error) {
+
+	ret := NewColDependency(dbName, collName)
 	file, err := OpenKeyValuesFile(keyValueDir, dbName, collName)
 	if err != nil {
 		return ret, fmt.Errorf("error while open key-values file: dir=%s, db=%s, colName=%s", keyValueDir, dbName, collName)
@@ -70,9 +91,11 @@ func FoundKeyValue(keyValueDir string, dbName string, collName string, valueToFi
 		if len(parts) != 2 {
 			continue
 		}
-		if (parts[1] == valueToFind) && (!slices.Contains(ret, parts[0])) {
-			ret = append(ret, parts[0])
-		}
+		// TODO
+		// if (parts[1] == valueToFind) && (!slices.Contains(ret, parts[0])) {
+
+		// 	ret = append(ret, parts[0])
+		// }
 	}
 
 	if err := scanner.Err(); err != nil {

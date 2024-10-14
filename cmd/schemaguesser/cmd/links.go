@@ -88,7 +88,9 @@ func linksForOneCollection(metaInfos []meta.MetaInfo, dbName string, collName st
 					if err != nil {
 						log.Printf("[%s:%s] Error while searching for value (%s) in %s:%s: %v", dbName, collName, k, metaInfo.Db, metaInfo.Collection, err)
 					}
-					// TODO - do something with the found links
+					// if len(deps) > 0 {
+					// 	// TODO - do something with the found links
+					// }
 				}
 			}(metaInfo)
 		}
