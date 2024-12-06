@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"okieoth/schemaguesser/internal/pkg/utils"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -35,7 +36,7 @@ type ColRefs struct {
 
 // This function read a key values file, extract the unique key values and return them
 // as map, where the key value is key of the map and ...
-func GetKeyValues(keyValueDir string, dbName string, collName string) (map[string][]string, error) {
+func GetKeyValues(keyValueDir string, dbName string, collName string, attribWhiteList []string) (map[string][]string, error) {
 	ret := make(map[string][]string, 0)
 	file, err := OpenKeyValuesFile(keyValueDir, dbName, collName)
 	if err != nil {
@@ -60,10 +61,16 @@ func GetKeyValues(keyValueDir string, dbName string, collName string) (map[strin
 
 		if _, exists := ret[value]; !exists {
 			ret[value] = []string{}
-			ret[value] = append(ret[value], key)
 		}
-		if !slices.Contains(ret[value], key) {
-			ret[value] = append(ret[value], key)
+		if len(attribWhiteList) > 0 {
+			harmonizedKey := harmonizeLinkAttribName(key)
+			if slices.Contains(attribWhiteList, harmonizedKey) && (!slices.Contains(ret[value], key)) {
+				ret[value] = append(ret[value], key)
+			}
+		} else {
+			if !slices.Contains(ret[value], key) {
+				ret[value] = append(ret[value], key)
+			}
 		}
 	}
 
@@ -79,10 +86,31 @@ func OpenKeyValuesFile(keyValueDir string, dbName string, colName string) (*os.F
 	return os.Open(filePath)
 }
 
-func FoundKeyValue(keyValueDir string, destDbName string, destCollName string, valueToFind string, sourceAttribsWithValue []string, sourceDbName string, sourceCollName string, chIn chan<- ColRefs) error {
+func harmonizeLinkAttribName(name string) string {
+	n := name
+	if lastIndex := strings.LastIndex(name, "-"); (lastIndex != -1) && (lastIndex < (len(n) - 1)) {
+		n = n[lastIndex+1:]
+	}
+	re := regexp.MustCompile(`[^a-zA-Z0-9-]`)
+	s := re.ReplaceAllString(n, "_")
+	return strings.ToLower(s)
+}
+
+func srcAndDestAttribsAreTheSame(sourceAttribsWithValue []string, destAttrib string) bool {
+	harmonizedDestAttrib := harmonizeLinkAttribName(destAttrib)
+	for _, a := range sourceAttribsWithValue {
+		harmonizedSrcAttrib := harmonizeLinkAttribName(a)
+		if harmonizedDestAttrib == harmonizedSrcAttrib {
+			return true
+		}
+	}
+	return false
+}
+
+func FindKeyValues(keyValueDir string, destDbName string, destCollName string, valueToFind string, sourceAttribsWithValue []string, sourceDbName string, sourceCollName string, chIn chan<- ColRefs, ignoreSameAttribRefs bool) (bool, error) {
 	file, err := OpenKeyValuesFile(keyValueDir, destDbName, destCollName)
 	if err != nil {
-		return fmt.Errorf("error while open key-values file: dir=%s, db=%s, colName=%s", keyValueDir, destDbName, destCollName)
+		return false, fmt.Errorf("error while open key-values file: dir=%s, db=%s, colName=%s", keyValueDir, destDbName, destCollName)
 	}
 	defer file.Close()
 
@@ -96,12 +124,18 @@ func FoundKeyValue(keyValueDir string, destDbName string, destCollName string, v
 			continue
 		}
 		if (parts[1] == valueToFind) && (!slices.Contains(foundAttribs, parts[0])) {
+			if ignoreSameAttribRefs {
+				if srcAndDestAttribsAreTheSame(sourceAttribsWithValue, parts[0]) {
+					continue
+				}
+			}
 			foundAttribs = append(foundAttribs, parts[0])
+			break
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error while reading the file: %v", err)
+		return false, fmt.Errorf("error while reading the file: %v", err)
 	}
 
 	colRefs := new(ColRefs)
@@ -109,6 +143,7 @@ func FoundKeyValue(keyValueDir string, destDbName string, destCollName string, v
 	colRefs.Collection = sourceCollName
 
 	if len(foundAttribs) > 0 {
+		// most likely the array has one element
 		for _, e := range sourceAttribsWithValue {
 			ref := new(AttribRef)
 			ref.AttribStr = e
@@ -119,7 +154,43 @@ func FoundKeyValue(keyValueDir string, destDbName string, destCollName string, v
 			ref.References = append(ref.References, *details)
 			colRefs.AttribRefs = append(colRefs.AttribRefs, *ref)
 		}
+		if len(colRefs.AttribRefs) > 0 {
+			chIn <- *colRefs
+		}
 	}
 
-	return nil
+	return len(foundAttribs) > 0, nil
+}
+
+func AggregateRefs(colRefs []ColRefs) []ColRefs {
+	// TODO improve performance
+	ret := make([]ColRefs, 0)
+	for _, cr := range colRefs {
+		var alreadyExisting *ColRefs
+		for i, r := range ret {
+			if r.Db == cr.Db {
+				alreadyExisting = &ret[i]
+				break
+			}
+		}
+		if alreadyExisting != nil {
+			for _, new_r := range cr.AttribRefs {
+				var existingAttrib *AttribRef
+				for j, existing_r := range alreadyExisting.AttribRefs {
+					if new_r.AttribStr == existing_r.AttribStr {
+						existingAttrib = &alreadyExisting.AttribRefs[j]
+						break
+					}
+				}
+				if existingAttrib != nil {
+					existingAttrib.References = append(existingAttrib.References, new_r.References...)
+				} else {
+					alreadyExisting.AttribRefs = append(alreadyExisting.AttribRefs, new_r)
+				}
+			}
+		} else {
+			ret = append(ret, cr)
+		}
+	}
+	return ret
 }

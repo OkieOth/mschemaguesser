@@ -3,6 +3,8 @@ package linksHelper
 import (
 	"slices"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var keyValueDir string = "../../../resources/key_values"
@@ -37,7 +39,7 @@ func TestOpenKeyValuesFile(t *testing.T) {
 }
 
 func TestGetKeyValues(t *testing.T) {
-	keyValues, err := GetKeyValues(keyValueDir, "odd", "cmd")
+	keyValues, err := GetKeyValues(keyValueDir, "odd", "cmd", []string{})
 	if err != nil {
 		t.Errorf("Received error while reading key-values: %v", err)
 		return
@@ -61,5 +63,63 @@ func TestGetKeyValues(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestAreSrcAndDestAttribsTheSame(t *testing.T) {
+	tests := []struct {
+		name                   string
+		sourceAttribsWithValue []string
+		destAttrib             string
+		expectedResult         bool
+	}{
+		{
+			name:                   "Matching attributes",
+			sourceAttribsWithValue: []string{"attrib1", "attrib2", "Attrib3"},
+			destAttrib:             "Attrib2",
+			expectedResult:         true,
+		},
+		{
+			name:                   "No matching attributes",
+			sourceAttribsWithValue: []string{"attrib1", "attrib2", "Attrib3"},
+			destAttrib:             "Attrib4",
+			expectedResult:         false,
+		},
+		{
+			name:                   "Matching after harmonization",
+			sourceAttribsWithValue: []string{"AttribA", "AttribB"},
+			destAttrib:             "attribA", // Assuming HarmonizeName will normalize case
+			expectedResult:         true,
+		},
+		{
+			name:                   "Empty source attributes",
+			sourceAttribsWithValue: []string{},
+			destAttrib:             "Attrib1",
+			expectedResult:         false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := srcAndDestAttribsAreTheSame(tt.sourceAttribsWithValue, tt.destAttrib)
+			assert.Equal(t, tt.expectedResult, result)
+		})
+	}
+}
+
+func TestHarmonizeLinkAttribName(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"HelloWorld", "helloworld"},
+		{"Hello World!", "hello_world_"},
+		{"123-ABC_xyz", "abc_xyz"},
+		{"123-ABC_xyz-", "123-abc_xyz-"},
+	}
+
+	for _, test := range tests {
+		result := harmonizeLinkAttribName(test.input)
+		assert.Equal(t, test.expected, result, "Expected %s but got %s", test.expected, result)
 	}
 }
