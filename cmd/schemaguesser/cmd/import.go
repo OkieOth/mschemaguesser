@@ -28,12 +28,16 @@ var importCmd = &cobra.Command{
 	Short: "Import data to mongodb",
 	Long:  `Based on a given mongodb connection you can import data from before stored BSON persistent files.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		client, err := mongoHelper.Connect(mongoHelper.ConStr)
-		if err != nil {
-			msg := fmt.Sprintf("Failed to connect to db: %v", err)
-			panic(msg)
+		var client *mongo.Client
+		var err error
+		if !useDumps {
+			client, err = mongoHelper.Connect(mongoHelper.ConStr)
+			if err != nil {
+				msg := fmt.Sprintf("Failed to connect to db: %v", err)
+				panic(msg)
+			}
+			defer mongoHelper.CloseConnection(client)
 		}
-		defer mongoHelper.CloseConnection(client)
 
 		if databaseName == "all" {
 			importAllDatabases(client, true)

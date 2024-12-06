@@ -51,6 +51,7 @@ func init() {
 	getCmd.AddCommand(bsonCmd)
 	getCmd.AddCommand(jsonCmd)
 	getCmd.AddCommand(keyValuesCmd)
+	getCmd.AddCommand(linksCmd)
 
 	getCmd.PersistentFlags().StringVarP(&databaseName, "database", "d", "all", "Database to query existing collections")
 
@@ -74,12 +75,12 @@ func init() {
 
 }
 
-func getAllDatabasesOrPanic(client *mongo.Client) []string {
-	if useDumps {
-		if dumpDir == "" {
-			panic("no 'dump_dir' flag given, so no idea from where to get the data")
+func getAllDatabasesOrPanic(client *mongo.Client, dirWithMetaFiles string, useMetaFiles bool) []string {
+	if useMetaFiles {
+		if dirWithMetaFiles == "" {
+			panic("no directory given to find the needed meta files for offline processing, so no idea from where to get the data")
 		}
-		ret, err := importHelper.AllDatabases(dumpDir)
+		ret, err := importHelper.AllDatabases(dirWithMetaFiles)
 		if err != nil {
 			log.Fatalf("error while reading dbs from 'dump_dir': %v", err)
 		}
@@ -92,12 +93,12 @@ func getAllDatabasesOrPanic(client *mongo.Client) []string {
 	}
 }
 
-func getAllCollectionsOrPanic(client *mongo.Client, dbName string) []string {
-	if useDumps {
-		if dumpDir == "" {
-			panic("no 'dump_dir' flag given, so no idea from where to get the data")
+func getAllCollectionsOrPanic(client *mongo.Client, dirWithMetaFiles string, useMetaFiles bool, dbName string) []string {
+	if useMetaFiles {
+		if dirWithMetaFiles == "" {
+			panic("no directory given to find the needed meta files for offline processing, so no idea from where to get the data")
 		}
-		ret, err := importHelper.AllCollectionsForDb(dumpDir, dbName)
+		ret, err := importHelper.AllCollectionsForDb(dirWithMetaFiles, dbName)
 		if err != nil {
 			log.Fatalf("error while reading collections for db (%s) from 'dump_dir': %v", dbName, err)
 		}

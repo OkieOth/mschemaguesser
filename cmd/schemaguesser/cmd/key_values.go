@@ -16,10 +16,11 @@ import (
 	"okieoth/schemaguesser/internal/pkg/utils"
 
 	"github.com/spf13/cobra"
+	"path/filepath"
 )
 
 func init() {
-	getCmd.Flags().BoolVar(&mongoHelper.KeepNullUuids, "keep_null_uuids", false, "If this flag is enabled, then '00000000-0000-0000-0000-000000000000' values are included in the approach. By default they are skipped.")
+	keyValuesCmd.Flags().BoolVar(&mongoHelper.KeepNullUuids, "keep_null_uuids", false, "If this flag is enabled, then '00000000-0000-0000-0000-000000000000' values are included in the approach. By default they are skipped.")
 }
 
 var keyValuesCmd = &cobra.Command{
@@ -27,12 +28,16 @@ var keyValuesCmd = &cobra.Command{
 	Short: "dump the values of assumed key field to a text file",
 	Long:  "With this command you can dump the data of considered key fields from the collections. Potential key fields are '_id', UUIDs or string in the UUID format. The received data are stored in a folder structure by database and collection. Every collection folder contains then the files with the field data (new line separated)",
 	Run: func(cmd *cobra.Command, args []string) {
-		client, err := mongoHelper.Connect(mongoHelper.ConStr)
-		if err != nil {
-			msg := fmt.Sprintf("Failed to connect to db: %v", err)
-			panic(msg)
+		var client *mongo.Client
+		var err error
+		if !useDumps {
+			client, err = mongoHelper.Connect(mongoHelper.ConStr)
+			if err != nil {
+				msg := fmt.Sprintf("Failed to connect to db: %v", err)
+				panic(msg)
+			}
+			defer mongoHelper.CloseConnection(client)
 		}
-		defer mongoHelper.CloseConnection(client)
 
 		if databaseName == "all" {
 			keyValuesForAllDatabases(client, true)
@@ -60,7 +65,7 @@ func keyValuesForOneCollection(client *mongo.Client, dbName string, collName str
 		progressbar.Init(1, descr)
 	}
 
-	outputFile, err := utils.CreateOutputFile(outputDir, "key-values.json", dbName, collName)
+	outputFile, err := utils.CreateOutputFile(outputDir, "key-values.txt", dbName, collName)
 	if err != nil {
 		panic(err)
 	}
@@ -77,14 +82,14 @@ func keyValuesForOneCollection(client *mongo.Client, dbName string, collName str
 		count++
 		return nil
 	})
-	if err := meta.WriteMetaInfo(outputDir, dbName, collName, count, "", nil); err != nil {
+	if err := meta.WriteMetaInfo(outputDir, dbName, collName, count, "", nil, filepath.Base(outputFile.Name())); err != nil {
 		panic(err)
 	}
 	log.Printf("[%s:%s] Key values persisted (count = %d) in %v\n", dbName, collName, count, time.Since(startTime))
 }
 
 func keyValuesForAllCollections(client *mongo.Client, dbName string, initProgressBar bool) {
-	collections := getAllCollectionsOrPanic(client, dbName)
+	collections := getAllCollectionsOrPanic(client, dumpDir, useDumps, dbName)
 	var wg sync.WaitGroup
 	if initProgressBar {
 		progressbar.Init(int64(len(collections)), "Key values export for all collections")
@@ -112,7 +117,7 @@ func keyValuesForAllCollections(client *mongo.Client, dbName string, initProgres
 }
 
 func keyValuesForAllDatabases(client *mongo.Client, initProgressBar bool) {
-	dbs := getAllDatabasesOrPanic(client)
+	dbs := getAllDatabasesOrPanic(client, dumpDir, useDumps)
 	var wg sync.WaitGroup
 	if initProgressBar {
 		progressbar.Init(int64(len(dbs)), "Key values export for all databases")

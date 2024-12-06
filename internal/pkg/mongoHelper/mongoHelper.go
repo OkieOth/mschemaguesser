@@ -27,6 +27,8 @@ func Connect(conStr string) (*mongo.Client, error) {
 	conStr2Use = utils.ReplaceWithEnvVar(conStr2Use, "MONGO_HOST", "localhost")
 	conStr2Use = utils.ReplaceWithEnvVar(conStr2Use, "MONGO_PORT", "27017")
 
+	log.Printf("Connect to mongo: conStr2Use=%s", conStr2Use)
+
 	return mongo.Connect(context.Background(), options.Client().ApplyURI(conStr2Use))
 }
 
