@@ -11,7 +11,7 @@ import (
 )
 
 func Test_jsonForAllDatabases_IT(t *testing.T) {
-	outputDir = "../../../temp"
+	outputDir = "../../../temp/Test_jsonForAllDatabases_IT"
 	defer utils.CleanDirectory(outputDir, false)
 
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
@@ -42,7 +42,7 @@ func Test_jsonForAllDatabases_IT(t *testing.T) {
 }
 
 func Test_jsonForAllCollections_IT(t *testing.T) {
-	outputDir = "../../../temp"
+	outputDir = "../../../temp/Test_jsonForAllCollections_IT"
 	defer utils.CleanDirectory(outputDir, false)
 
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
@@ -69,7 +69,7 @@ func Test_jsonForAllCollections_IT(t *testing.T) {
 }
 
 func Test_jsonForOneCollection_IT(t *testing.T) {
-	outputDir = "../../../temp"
+	outputDir = "../../../temp/Test_jsonForOneCollection_IT"
 	defer utils.CleanDirectory(outputDir, false)
 
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
@@ -101,7 +101,7 @@ func queryOneFileFromDb(t *testing.T) bool {
 }
 
 func Test_jsonForAllDatabases(t *testing.T) {
-	outputDir = "../../../temp"
+	outputDir = "../../../temp/Test_jsonForAllDatabases"
 	defer utils.CleanDirectory(outputDir, false)
 
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
@@ -122,7 +122,7 @@ func Test_jsonForAllDatabases(t *testing.T) {
 }
 
 func Test_jsonForAllCollections(t *testing.T) {
-	outputDir = "../../../temp"
+	outputDir = "../../../temp/Test_jsonForAllCollections"
 	defer utils.CleanDirectory(outputDir, false)
 
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
@@ -143,7 +143,7 @@ func Test_jsonForAllCollections(t *testing.T) {
 }
 
 func Test_jsonForOneCollection2_IT(t *testing.T) {
-	outputDir = "../../../temp"
+	outputDir = "../../../temp/Test_jsonForOneCollection2_IT"
 	defer utils.CleanDirectory(outputDir, false)
 
 	if !testhelper.ValidateEmptyDir(outputDir, t) {

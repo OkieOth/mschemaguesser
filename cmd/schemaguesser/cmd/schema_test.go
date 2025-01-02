@@ -28,7 +28,8 @@ func Test_getDocumentCount_IT(t *testing.T) {
 		return
 	}
 
-	if mt.Count.Value != 4 {
+	// In case the imports run multiple times
+	if (mt.Count.Value % 4) != 0 {
 		t.Errorf("Value != 4, got: %d", mt.Count.Value)
 	}
 
@@ -52,7 +53,7 @@ func Test_replaceUuidValues(t *testing.T) {
 }
 
 func Test_printSchemaForAllDatabases_IT(t *testing.T) {
-	outputDir = "../../../temp"
+	outputDir = "../../../temp/Test_printSchemaForAllDatabases_IT"
 	defer utils.CleanDirectory(outputDir, false)
 
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
@@ -81,7 +82,7 @@ func Test_printSchemaForAllDatabases_IT(t *testing.T) {
 }
 
 func Test_printSchemaForAllDatabases(t *testing.T) {
-	outputDir = "../../../temp"
+	outputDir = "../../../temp/Test_printSchemaForAllDatabases"
 	defer utils.CleanDirectory(outputDir, false)
 
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
@@ -102,7 +103,7 @@ func Test_printSchemaForAllDatabases(t *testing.T) {
 }
 
 func Test_printSchemaForOneCollection_IT(t *testing.T) {
-	outputDir = "../../../temp"
+	outputDir = "../../../temp/Test_printSchemaForOneCollection_IT"
 	defer utils.CleanDirectory(outputDir, false)
 
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
@@ -113,7 +114,7 @@ func Test_printSchemaForOneCollection_IT(t *testing.T) {
 }
 
 func Test_printSchemaForOneCollection2_IT(t *testing.T) {
-	outputDir = "../../../temp"
+	outputDir = "../../../temp/Test_printSchemaForOneCollection2_IT"
 	defer utils.CleanDirectory(outputDir, false)
 
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
@@ -170,7 +171,7 @@ func schemaForOneFileFromDb(t *testing.T) bool {
 }
 
 func Test_printSchemaForAllCollections_IT(t *testing.T) {
-	outputDir = "../../../temp"
+	outputDir = "../../../temp/Test_printSchemaForAllCollections_IT"
 	defer utils.CleanDirectory(outputDir, false)
 
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
@@ -197,7 +198,7 @@ func Test_printSchemaForAllCollections_IT(t *testing.T) {
 }
 
 func Test_printSchemaForAllCollections(t *testing.T) {
-	outputDir = "../../../temp"
+	outputDir = "../../../temp/Test_printSchemaForAllCollections"
 	defer utils.CleanDirectory(outputDir, false)
 
 	if !testhelper.ValidateEmptyDir(outputDir, t) {

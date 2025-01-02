@@ -103,12 +103,13 @@ func importAllCollections(client *mongo.Client, dbName string, initProgressBar b
 		progressbar.Init(int64(len(collections)), "BSON import for all collections")
 	}
 
+	wg.Add(len(collections))
 	for _, coll := range collections {
 		if slices.Contains(blacklist, coll) {
 			log.Printf("[%s:%s] skip blacklisted collection\n", dbName, coll)
+			wg.Done()
 			continue
 		}
-		wg.Add(1)
 		go func(s string) {
 			startTime := time.Now()
 			defer func() {
@@ -133,12 +134,13 @@ func importAllDatabases(client *mongo.Client, initProgressBar bool) {
 	if initProgressBar {
 		progressbar.Init(int64(len(dbs)), "BSON import for all databases")
 	}
+	wg.Add(len(dbs))
 	for _, db := range dbs {
 		if slices.Contains(blacklist, db) {
 			log.Printf("[%s] skip blacklisted DB\n", db)
+			wg.Done()
 			continue
 		}
-		wg.Add(1)
 		go func(s string) {
 			startTime := time.Now()
 			defer func() {

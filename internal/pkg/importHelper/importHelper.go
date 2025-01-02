@@ -102,7 +102,10 @@ func ImportData(client *mongo.Client, importFile string, dbName string, collName
 		}
 		docLength := int32(binary.LittleEndian.Uint32(buf))
 		docBuf := make([]byte, docLength)
-		_, err = io.ReadFull(file, docBuf)
+		// BSONs first four bytes are for the full document size (including the length marker)
+		// ... so we need to copy the for bytes in the result to have a valid bson document
+		copy(docBuf, buf)
+		_, err = io.ReadFull(file, docBuf[4:])
 		if err != nil {
 			return readCount, fmt.Errorf("failed to read document to buffer: %v", err)
 		}

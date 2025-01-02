@@ -9,7 +9,7 @@ import (
 )
 
 func Test_bsonForAllDatabases_IT(t *testing.T) {
-	outputDir = "../../../temp"
+	outputDir = "../../../temp/Test_bsonForAllDatabases_IT"
 	defer utils.CleanDirectory(outputDir, false)
 
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
@@ -41,7 +41,7 @@ func Test_bsonForAllDatabases_IT(t *testing.T) {
 }
 
 func Test_bsonForAllCollections_IT(t *testing.T) {
-	outputDir = "../../../temp"
+	outputDir = "../../../temp/Test_bsonForAllCollections_IT"
 	defer utils.CleanDirectory(outputDir, false)
 
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
@@ -68,7 +68,7 @@ func Test_bsonForAllCollections_IT(t *testing.T) {
 }
 
 func Test_bsonForOneCollection_IT(t *testing.T) {
-	outputDir = "../../../temp"
+	outputDir = "../../../temp/Test_bsonForOneCollection_IT"
 	defer utils.CleanDirectory(outputDir, false)
 
 	if !testhelper.ValidateEmptyDir(outputDir, t) {

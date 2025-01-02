@@ -13,6 +13,13 @@ import (
 )
 
 func ValidateExpectedFiles(dir string, expected []string, t *testing.T) bool {
+	if exist, _ := utils.DirExists(dir); !exist {
+		e := os.MkdirAll(dir, 0755)
+		if e != nil {
+			t.Errorf("Error while creating test dir (%s): %v", dir, e)
+			return false
+		}
+	}
 	files, err := utils.GetFilesInDir(dir, false)
 	if err != nil {
 		t.Errorf("Error while getting files via GetFilesInDir (%s): %v", dir, err)
@@ -36,6 +43,13 @@ func ValidateExpectedFiles(dir string, expected []string, t *testing.T) bool {
 }
 
 func ValidateEmptyDir(dir string, t *testing.T) bool {
+	if exist, _ := utils.DirExists(dir); !exist {
+		e := os.MkdirAll(dir, 0755)
+		if e != nil {
+			t.Errorf("Error while creating test dir (%s): %v", dir, e)
+			return false
+		}
+	}
 	files, err := utils.GetFilesInDir(dir, false)
 
 	if err != nil {

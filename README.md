@@ -73,5 +73,23 @@ docker run -u $(id -u ${USER}):$(id -g ${USER}) --rm \
 ```bash
 # show help
 go run cmd/schemaguesser/main.go help
+```
+
+## Some helper
+
+```bash
+# command to dump dummy:c1 collection
+docker run  -u $(id -u $USER):$(id -g $USER) --rm \
+  -v $(pwd)/tmp:/dump \
+  mongo \
+  mongodump \
+  --host 10.29.128.59 \
+  --port 27017 \
+  --username admin \
+  --password secretpassword \
+  --authenticationDatabase admin \
+  --out /dump \
+  -d 'dummy' \
+  -c 'c1'
 
 ```
