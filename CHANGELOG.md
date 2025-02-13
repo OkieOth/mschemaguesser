@@ -1,3 +1,6 @@
+# 2.2.1
+* change dockerfile to enable run as non-root
+
 # 1.1.1
 * fix issues with subtypes
 
