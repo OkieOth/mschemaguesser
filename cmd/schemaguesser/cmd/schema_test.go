@@ -55,6 +55,7 @@ func Test_printSchemaForAllDatabases_IT(t *testing.T) {
 	outputDir = "../../../temp"
 	defer utils.CleanDirectory(outputDir, false)
 
+	utils.CleanDirectory(outputDir, false)
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
 		return
 	}
@@ -84,6 +85,7 @@ func Test_printSchemaForAllDatabases(t *testing.T) {
 	outputDir = "../../../temp"
 	defer utils.CleanDirectory(outputDir, false)
 
+	utils.CleanDirectory(outputDir, false)
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
 		return
 	}
@@ -105,6 +107,7 @@ func Test_printSchemaForOneCollection_IT(t *testing.T) {
 	outputDir = "../../../temp"
 	defer utils.CleanDirectory(outputDir, false)
 
+	utils.CleanDirectory(outputDir, false)
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
 		return
 	}
@@ -116,6 +119,7 @@ func Test_printSchemaForOneCollection2_IT(t *testing.T) {
 	outputDir = "../../../temp"
 	defer utils.CleanDirectory(outputDir, false)
 
+	utils.CleanDirectory(outputDir, false)
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
 		return
 	}
@@ -173,6 +177,7 @@ func Test_printSchemaForAllCollections_IT(t *testing.T) {
 	outputDir = "../../../temp"
 	defer utils.CleanDirectory(outputDir, false)
 
+	utils.CleanDirectory(outputDir, false)
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
 		return
 	}
@@ -200,6 +205,7 @@ func Test_printSchemaForAllCollections(t *testing.T) {
 	outputDir = "../../../temp"
 	defer utils.CleanDirectory(outputDir, false)
 
+	utils.CleanDirectory(outputDir, false)
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
 		return
 	}

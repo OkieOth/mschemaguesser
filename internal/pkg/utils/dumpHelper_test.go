@@ -86,8 +86,8 @@ func TestDumpBytesToFile(t *testing.T) {
 	// Create a temporary file
 	dumpFile, err := os.CreateTemp("../../../temp", "test_dump_bytes_*.txt")
 	assert.NoError(t, err)
-	defer os.Remove(dumpFile.Name()) // Cleanup
 	defer dumpFile.Close()
+	defer os.Remove(dumpFile.Name()) // Cleanup
 
 	// Sample data to dump
 	data := []byte("Hello, World!")

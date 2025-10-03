@@ -32,3 +32,4 @@ log.txt
 set_debug_env.sh
 debug_test.go
 debug_test.*
+*__debug_*
