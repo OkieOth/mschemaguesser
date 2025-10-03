@@ -7,16 +7,15 @@ import (
 
 	"okieoth/schemaguesser/internal/pkg/mongoHelper"
 	testhelper "okieoth/schemaguesser/internal/pkg/testHelper"
-	"okieoth/schemaguesser/internal/pkg/utils"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_jsonForAllDatabases_IT(t *testing.T) {
-	outputDir = "../../../temp"
-	defer utils.CleanDirectory(outputDir, false)
-
-	if !testhelper.ValidateEmptyDir(outputDir, t) {
-		return
-	}
+	tmpDir, err := os.MkdirTemp(TEMP_BASE, "mschemag-*")
+	require.Nil(t, err)
+	defer os.RemoveAll(tmpDir)
+	outputDir = tmpDir
 
 	conStr := "mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/admin"
 	useDumps = false
@@ -42,9 +41,10 @@ func Test_jsonForAllDatabases_IT(t *testing.T) {
 }
 
 func Test_jsonForAllCollections_IT(t *testing.T) {
-	outputDir = "../../../temp"
-	defer utils.CleanDirectory(outputDir, false)
-
+	tmpDir, err := os.MkdirTemp(TEMP_BASE, "mschemag-*")
+	require.Nil(t, err)
+	defer os.RemoveAll(tmpDir)
+	outputDir = tmpDir
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
 		return
 	}
@@ -69,9 +69,10 @@ func Test_jsonForAllCollections_IT(t *testing.T) {
 }
 
 func Test_jsonForOneCollection_IT(t *testing.T) {
-	outputDir = "../../../temp"
-	defer utils.CleanDirectory(outputDir, false)
-
+	tmpDir, err := os.MkdirTemp(TEMP_BASE, "mschemag-*")
+	require.Nil(t, err)
+	defer os.RemoveAll(tmpDir)
+	outputDir = tmpDir
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
 		return
 	}
@@ -101,9 +102,10 @@ func queryOneFileFromDb(t *testing.T) bool {
 }
 
 func Test_jsonForAllDatabases(t *testing.T) {
-	outputDir = "../../../temp"
-	defer utils.CleanDirectory(outputDir, false)
-
+	tmpDir, err := os.MkdirTemp(TEMP_BASE, "mschemag-*")
+	require.Nil(t, err)
+	defer os.RemoveAll(tmpDir)
+	outputDir = tmpDir
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
 		return
 	}
@@ -122,9 +124,10 @@ func Test_jsonForAllDatabases(t *testing.T) {
 }
 
 func Test_jsonForAllCollections(t *testing.T) {
-	outputDir = "../../../temp"
-	defer utils.CleanDirectory(outputDir, false)
-
+	tmpDir, err := os.MkdirTemp(TEMP_BASE, "mschemag-*")
+	require.Nil(t, err)
+	defer os.RemoveAll(tmpDir)
+	outputDir = tmpDir
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
 		return
 	}
@@ -143,9 +146,10 @@ func Test_jsonForAllCollections(t *testing.T) {
 }
 
 func Test_jsonForOneCollection2_IT(t *testing.T) {
-	outputDir = "../../../temp"
-	defer utils.CleanDirectory(outputDir, false)
-
+	tmpDir, err := os.MkdirTemp(TEMP_BASE, "mschemag-*")
+	require.Nil(t, err)
+	defer os.RemoveAll(tmpDir)
+	outputDir = tmpDir
 	if !testhelper.ValidateEmptyDir(outputDir, t) {
 		return
 	}
@@ -157,7 +161,7 @@ func Test_jsonForOneCollection2_IT(t *testing.T) {
 	pathNewFileName := filepath.Join(outputDir, newFileName)
 	origFileName := "dummy_c2.json"
 	pathOrigFileName := filepath.Join(outputDir, origFileName)
-	err := os.Rename(pathOrigFileName, pathNewFileName)
+	err = os.Rename(pathOrigFileName, pathNewFileName)
 	if err != nil {
 		t.Errorf("Error renaming test file (%s -> %s): %v", origFileName, newFileName, err)
 		return

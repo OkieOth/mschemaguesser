@@ -25,7 +25,7 @@ services:
     networks:
       - test_network
 
-  test_runner:
+  schemaguesser_test_runner:
     build:
       context: ..
       args:

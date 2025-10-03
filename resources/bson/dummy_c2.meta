@@ -2,7 +2,8 @@
   "version": "1.0.0",
   "comment": "The file format is binary. Every entry consists of of a four byte field with the length of the following bson content and the mongo bson content itself",
   "db": "dummy",
+  "fileName": "dummy_c2.bson",
   "collection": "c2",
-  "exportTime": "2024-10-04T14:33:16.632716137+02:00",
+  "exportTime": "2025-10-03T21:37:48.263836405+02:00",
   "itemCount": 3
 }

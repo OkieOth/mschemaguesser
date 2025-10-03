@@ -102,7 +102,8 @@ func ImportData(client *mongo.Client, importFile string, dbName string, collName
 		}
 		docLength := int32(binary.LittleEndian.Uint32(buf))
 		docBuf := make([]byte, docLength)
-		_, err = io.ReadFull(file, docBuf)
+		copy(docBuf, buf)
+		_, err = io.ReadFull(file, docBuf[4:])
 		if err != nil {
 			return readCount, fmt.Errorf("failed to read document to buffer: %v", err)
 		}

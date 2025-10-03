@@ -145,7 +145,8 @@ func getCollectionFromLocalFile(importFile string, callback mongoHelper.HandleDa
 		}
 		docLength := int32(binary.LittleEndian.Uint32(buf))
 		docBuf := make([]byte, docLength)
-		_, err = io.ReadFull(file, docBuf)
+		copy(docBuf, buf)
+		_, err = io.ReadFull(file, docBuf[4:])
 		if err != nil {
 			return fmt.Errorf("failed to read document to buffer: %v, readCount: %d", err, readCount)
 		}

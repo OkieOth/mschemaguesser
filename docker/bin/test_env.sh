@@ -16,7 +16,8 @@ function stop() {
 
 function test() {
   echo "Run the docker compose based tests..."
-  docker compose -f $COMPOSE_FILE up --build --abort-on-container-exit --exit-code-from test_runner
+  docker compose -f $COMPOSE_FILE build --no-cache
+  docker compose -f $COMPOSE_FILE up --abort-on-container-exit --exit-code-from schemaguesser_test_runner
 }
 
 function destroy() {

@@ -6,12 +6,15 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_GetFilesInDir(t *testing.T) {
-	tempDir := "../../../temp"
-	defer CleanDirectory(tempDir, false)
-
+	baseTempDir := "../../../temp"
+	tempDir, err := os.MkdirTemp(baseTempDir, "mschemag-*")
+	require.Nil(t, err)
+	defer os.RemoveAll(tempDir)
 	validateEmptyDir := func() bool {
 		files, err := GetFilesInDir(tempDir, false)
 
@@ -65,7 +68,7 @@ func Test_GetFilesInDir(t *testing.T) {
 	if !validate3Files() { // test that we got 3 files
 		return
 	}
-	err := os.Mkdir(filepath.Join(tempDir, "Test_GetFilesInDir_3.txt"), 0755)
+	err = os.Mkdir(filepath.Join(tempDir, "Test_GetFilesInDir_3.txt"), 0755)
 	if err != nil {
 		t.Errorf("Error (3) while creating test dir: %v", err)
 		return
